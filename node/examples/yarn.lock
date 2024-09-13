@@ -189,7 +189,7 @@ stream-read-all@^3.0.1:
   resolved "https://registry.yarnpkg.com/stream-read-all/-/stream-read-all-3.0.1.tgz#60762ae45e61d93ba0978cda7f3913790052ad96"
   integrity sha512-EWZT9XOceBPlVJRrYcykW8jyRSZYbkb/0ZK36uLEmoWVO5gxBOnntNTseNzfREsqxqdfEGQrD8SXQ3QWbBmq8A==
 
-superchain@../:
+pangea@../:
   version "5.0.0-0"
   dependencies:
     "@swc/helpers" "~0.5.11"

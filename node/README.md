@@ -1,4 +1,3 @@
-# Node superchain-client
+# Node pangea-client
 
-See, `examples` directory for usage 
-
+See, `examples` directory for usage

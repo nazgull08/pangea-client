@@ -3,33 +3,33 @@ use lazy_static::lazy_static;
 use super::{client::Client, error::Result, provider::Provider};
 
 lazy_static! {
+    static ref USERNAME: String = std::env::var("PANGEA_USERNAME").unwrap_or_default();
+}
+lazy_static! {
+    static ref PASSWORD: String = std::env::var("PANGEA_PASSWORD").unwrap_or_default();
+}
+lazy_static! {
     static ref DEFAULT_ENDPOINT: String =
-        std::env::var("SUPER_URL").unwrap_or_else(|_| "app.superchain.network".to_string());
-}
-lazy_static! {
-    static ref USERNAME: String = std::env::var("SUPER_USERNAME").unwrap_or_default();
-}
-lazy_static! {
-    static ref PASSWORD: String = std::env::var("SUPER_PASSWORD").unwrap_or_default();
+        std::env::var("PANGEA_URL").unwrap_or_else(|_| "app.pangea.foundation".to_string());
 }
 
 /// A builder for `Client`.
 /// examples:
 /// ```
-/// use superchain_client::ClientBuilder;
-/// use superchain_client::HttpProvider;
+/// use pangea_client::ClientBuilder;
+/// use pangea_client::HttpProvider;
 ///
 /// let client = ClientBuilder::default()
-///   .endpoint("app.superchain.network")
+///   .endpoint("app.pangea.foundation")
 ///   .build::<HttpProvider>();
 /// ```
 ///
 /// ```
-/// use superchain_client::ClientBuilder;
-/// use superchain_client::WsProvider;
+/// use pangea_client::ClientBuilder;
+/// use pangea_client::WsProvider;
 ///
 /// let client = ClientBuilder::default()
-///  .endpoint("app.superchain.network")
+///  .endpoint("app.pangea.foundation")
 ///  .build::<WsProvider>();
 /// ```
 pub struct ClientBuilder {
@@ -42,11 +42,11 @@ pub struct ClientBuilder {
 /// A builder for `Client`.
 /// example:
 /// ```
-/// use superchain_client::ClientBuilder;
-/// use superchain_client::HttpProvider;
+/// use pangea_client::ClientBuilder;
+/// use pangea_client::HttpProvider;
 ///
 /// let client = ClientBuilder::default()
-///    .endpoint("app.superchain.network")
+///    .endpoint("app.pangea.foundation")
 ///    .credential("username", "password")
 ///   .build::<HttpProvider>();
 /// ```
@@ -83,13 +83,13 @@ impl ClientBuilder {
 }
 
 /// Default implementation for `ClientBuilder`.
-/// Default endpoint is `app.superchain.network`.
+/// Default endpoint is `app.pangea.foundation`.
 /// Default secure is true.
 /// Default username is None.
 /// Default password is None.
 /// ```
-/// use superchain_client::ClientBuilder;
-/// use superchain_client::HttpProvider;
+/// use pangea_client::ClientBuilder;
+/// use pangea_client::HttpProvider;
 ///
 /// let client = ClientBuilder::default()
 ///   .build::<HttpProvider>();
@@ -97,9 +97,9 @@ impl ClientBuilder {
 impl Default for ClientBuilder {
     fn default() -> Self {
         Self {
-            endpoint: DEFAULT_ENDPOINT.to_string(),
             username: Some(USERNAME.to_string()),
             password: Some(PASSWORD.to_string()),
+            endpoint: DEFAULT_ENDPOINT.to_string(),
             is_secure: true,
         }
     }

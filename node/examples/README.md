@@ -1,8 +1,8 @@
-# Node superchain-client examples
+# Node pangea-client examples
 
-Setup dependencies 
+Setup dependencies
 
-    yarn 
+    yarn
 
 Example of fetching data in arrow format
 
@@ -11,4 +11,3 @@ Example of fetching data in arrow format
 Example of fetching data in json format
 
     yarn json
-

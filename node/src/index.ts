@@ -11,9 +11,9 @@ export interface ClientOptions {
 
 function applyDefaults(options: ClientOptions): ClientOptions {
   return {
-    endpoint: options.endpoint || 'app.superchain.network',
     username: options.username,
     password: options.password,
+    endpoint: options.endpoint || 'app.pangea.foundation',
     isSecure: options.isSecure === undefined ? true : options.isSecure,
   };
 }

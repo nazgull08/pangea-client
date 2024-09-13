@@ -1,7 +1,7 @@
-//! # superchain-client
+//! # pangea-client
 //!
 //! ### Introduction
-//! This crate allows you to access [Superchain API](https://docs.superchain.network/).
+//! This crate allows you to access [Pangea API](https://docs.pangea.foundation/).
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![deny(rust_2018_idioms, rustdoc::broken_intra_doc_links)]

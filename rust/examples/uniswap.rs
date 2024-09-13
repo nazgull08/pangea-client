@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use futures::StreamExt;
-use superchain_client::{
+use pangea_client::{
     core::types::{format::Format, ChainId},
     provider::UniswapV3Provider,
     query::Bound,
@@ -14,10 +14,9 @@ use superchain_client::{
 async fn main() {
     dotenv::dotenv().ok();
 
-    let url = std::env::var("SUPER_URL")
-        .unwrap_or("app.superchain.network".to_string());
-    let username = std::env::var("SUPER_USERNAME").unwrap();
-    let password = std::env::var("SUPER_PASSWORD").unwrap();
+    let username = std::env::var("PANGEA_USERNAME").unwrap();
+    let password = std::env::var("PANGEA_PASSWORD").unwrap();
+    let url = std::env::var("PANGEA_URL").unwrap_or("app.pangea.foundation".to_string());
 
     // setup websocket client
     let client = ClientBuilder::default()
@@ -27,13 +26,13 @@ async fn main() {
         .await
         .unwrap();
 
-    // subscribe to prices 
+    // subscribe to prices
     let request = GetPricesRequest {
         chains: HashSet::from([ChainId::ETH]),
-        from_block: Bound::Latest, 
+        from_block: Bound::Latest,
         to_block: Bound::Subscribe, // real-time
         // for historical data without subscription uncomment below
-        // from_block: Bound::FromLatest(100), 
+        // from_block: Bound::FromLatest(100),
         // to_block: Bound::Latest,
         ..Default::default()
     };
@@ -41,7 +40,7 @@ async fn main() {
     let stream = client.get_prices_by_format(request, Format::JsonStream, false).await.unwrap();
 
     futures::pin_mut!(stream);
-    
+
     // async iterator over stream of data
     while let Some(data) = stream.next().await {
         let price = String::from_utf8(data.unwrap()).unwrap(); // or use serde json

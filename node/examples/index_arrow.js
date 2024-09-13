@@ -1,12 +1,12 @@
-const { Client } = require('superchain');
+const { Client } = require('pangea');
 const dotenv = require('dotenv');
 const { tableFromIPC } = require('apache-arrow');
 
 dotenv.config();
 
-const username = process.env.SUPER_USERNAME;
-const password = process.env.SUPER_PASSWORD;
-const endpoint = process.env.SUPER_URL || "app.superchain.network";
+const username = process.env.PANGEA_USERNAME;
+const password = process.env.PANGEA_PASSWORD;
+const endpoint = process.env.PANGEA_URL || "app.pangea.foundation";
 
 const client = new Client({ username, password, endpoint });
 

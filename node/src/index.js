@@ -13,7 +13,7 @@ const _buffer = require("buffer");
 const _ws = require("ws");
 function applyDefaults(options) {
     return {
-        endpoint: options.endpoint || 'app.superchain.network',
+        endpoint: options.endpoint || 'app.pangea.foundation',
         username: options.username,
         password: options.password,
         isSecure: options.isSecure === undefined ? true : options.isSecure
