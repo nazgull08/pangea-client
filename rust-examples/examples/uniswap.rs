@@ -14,9 +14,14 @@ use pangea_client::{
 async fn main() {
     dotenv::dotenv().ok();
 
+    let url = std::env::var("PANGEA_URL").unwrap_or("app.pangea.foundation".to_string());
     let username = std::env::var("PANGEA_USERNAME").unwrap();
     let password = std::env::var("PANGEA_PASSWORD").unwrap();
-    let url = std::env::var("PANGEA_URL").unwrap_or("app.pangea.foundation".to_string());
+
+    println!("");
+    println!("URL: \x1b[1m{url}\x1b[0m");
+    println!("Username: \x1b[1m{username}\x1b[0m");
+    println!("");
 
     // setup websocket client
     let client = ClientBuilder::default()
@@ -26,14 +31,25 @@ async fn main() {
         .await
         .unwrap();
 
-    // subscribe to prices
+    // historic request (last 100 blocks)
+    // let request = GetPricesRequest {
+    //    from_block: Bound::FromLatest(100),
+    //    to_block: Bound::Latest,
+    //    ..Default::default()
+    // };
+
+    // historic request (last 100 blocks) + stream realtime
+    // let request = GetPricesRequest {
+    //    from_block: Bound::FromLatest(100),
+    //    to_block: Bound::Subscribe,
+    //    ..Default::default()
+    // };
+
+    // stream realtime prices
     let request = GetPricesRequest {
-        chains: HashSet::from([ChainId::ETH]),
         from_block: Bound::Latest,
-        to_block: Bound::Subscribe, // real-time
-        // for historical data without subscription uncomment below
-        // from_block: Bound::FromLatest(100),
-        // to_block: Bound::Latest,
+        to_block: Bound::Subscribe,
+        chains: HashSet::from([ChainId::ETH]),
         ..Default::default()
     };
 
