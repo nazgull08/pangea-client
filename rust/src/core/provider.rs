@@ -1,4 +1,4 @@
-use std::pin::Pin;
+use std::{collections::HashSet, pin::Pin};
 
 use async_trait::async_trait;
 use futures::Stream;
@@ -9,7 +9,7 @@ use super::{
         self,
         blocks::GetBlocksRequest,
         btc::{GetBtcBlocksRequest, GetBtcTxsRequest},
-        fuel::{GetFuelReceiptsRequest, GetUtxoRequest},
+        fuel::{GetFuelReceiptsRequest, GetSrc20, GetUtxoRequest},
         logs::GetLogsRequest,
         txs::GetTxsRequest,
         uniswap_v2::GetPairsRequest,
@@ -23,7 +23,7 @@ use crate::{
         fuel::{GetFuelBlocksRequest, GetFuelLogsRequest, GetFuelTxsRequest, GetSparkOrderRequest},
         transfers::GetTransfersRequest,
     },
-    Format,
+    ChainId, Error, Format,
 };
 
 pub type ResponseStream<T> = Pin<Box<dyn Stream<Item = Result<T>> + Send>>;
@@ -150,6 +150,8 @@ pub trait Erc20Provider {
 
 #[async_trait]
 pub trait FuelProvider {
+    const FUEL_VALID_CHAINS: [ChainId; 2] = [ChainId::FUEL, ChainId::FUELTESTNET];
+
     async fn get_fuel_blocks_by_format(
         &self,
         request: GetFuelBlocksRequest,
@@ -178,6 +180,13 @@ pub trait FuelProvider {
         deltas: bool,
     ) -> StreamResponse<Vec<u8>>;
 
+    async fn get_fuel_messages_by_format(
+        &self,
+        request: requests::fuel::GetFuelMessagesRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>>;
+
     async fn get_fuel_unspent_utxos_by_format(
         &self,
         request: GetUtxoRequest,
@@ -191,6 +200,24 @@ pub trait FuelProvider {
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>>;
+
+    async fn get_fuel_src20_by_format(
+        &self,
+        request: GetSrc20,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>>;
+
+    fn check_chain(&self, chains: &HashSet<ChainId>) -> Result<()> {
+        if !chains
+            .iter()
+            .all(|chain| Self::FUEL_VALID_CHAINS.contains(chain))
+        {
+            return Err(Error::InvalidChainId(chains.clone()));
+        }
+
+        Ok(())
+    }
 }
 
 #[async_trait]

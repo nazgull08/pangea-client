@@ -5,8 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::types::{
-        default_chains,
-        fuel::{OrderChangeType, OrderType, ReceiptType, TransactionType},
+        fuel::{LimitType, MessageType, OrderEventType, OrderType, ReceiptType, TransactionType},
         ChainId,
     },
     query::Bound,
@@ -209,6 +208,74 @@ impl Default for GetFuelReceiptsRequest {
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 #[allow(non_snake_case)]
+pub struct GetFuelMessagesRequest {
+    #[serde(default = "default_chains")]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub chains: HashSet<ChainId>,
+
+    // Inclusive lower bound if is Some for block number
+    #[serde(default)]
+    pub from_block: Bound,
+    // Exclusive upper bound if is Some for block number
+    #[serde(default)]
+    pub to_block: Bound,
+
+    #[serde(default)]
+    pub da_block_number__gte: Option<u64>,
+
+    #[serde(default)]
+    pub da_block_number__lte: Option<u64>,
+
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub sender__in: HashSet<H256>,
+
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub recipient__in: HashSet<H256>,
+
+    #[serde(default)]
+    pub amount__gte: Option<u64>,
+
+    #[serde(default)]
+    pub amount__lte: Option<u64>,
+
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub message_type__in: HashSet<MessageType>,
+}
+
+impl Default for GetFuelMessagesRequest {
+    fn default() -> Self {
+        Self {
+            chains: default_chains(),
+            from_block: Bound::default(),
+            to_block: Bound::default(),
+            da_block_number__gte: None,
+            da_block_number__lte: None,
+            sender__in: HashSet::new(),
+            recipient__in: HashSet::new(),
+            amount__gte: None,
+            amount__lte: None,
+            message_type__in: HashSet::new(),
+        }
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug)]
+#[allow(non_snake_case)]
 pub struct GetSparkOrderRequest {
     #[serde(default = "default_chains")]
     #[serde(
@@ -242,7 +309,13 @@ pub struct GetSparkOrderRequest {
         serialize_with = "serialize_comma_separated",
         skip_serializing_if = "HashSet::is_empty"
     )]
-    pub state_type__in: HashSet<OrderChangeType>,
+    pub event_type__in: HashSet<OrderEventType>,
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub limit_type__in: HashSet<LimitType>,
     #[serde(default)]
     #[serde(
         serialize_with = "serialize_comma_separated",
@@ -254,13 +327,12 @@ pub struct GetSparkOrderRequest {
         serialize_with = "serialize_comma_separated",
         skip_serializing_if = "HashSet::is_empty"
     )]
-    pub owner__in: HashSet<H256>,
-    #[serde(default)]
+    pub asset__in: HashSet<H256>,
     #[serde(
         serialize_with = "serialize_comma_separated",
         skip_serializing_if = "HashSet::is_empty"
     )]
-    pub asset__in: HashSet<H256>,
+    pub market_id__in: HashSet<H256>,
     #[serde(
         serialize_with = "serialize_comma_separated",
         skip_serializing_if = "HashSet::is_empty"
@@ -276,10 +348,11 @@ impl Default for GetSparkOrderRequest {
             to_block: Bound::default(),
             order_id__in: HashSet::new(),
             order_type__in: HashSet::new(),
-            state_type__in: HashSet::new(),
+            event_type__in: HashSet::new(),
+            limit_type__in: HashSet::new(),
             user__in: HashSet::new(),
-            owner__in: HashSet::new(),
             asset__in: HashSet::new(),
+            market_id__in: HashSet::new(),
             address__in: HashSet::new(),
         }
     }
@@ -323,4 +396,80 @@ impl Default for GetUtxoRequest {
             address__in: HashSet::new(),
         }
     }
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug)]
+#[allow(non_snake_case)]
+pub struct GetSrc20 {
+    #[serde(default = "default_chains")]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub chains: HashSet<ChainId>,
+
+    // Inclusive lower bound if is Some for block number
+    #[serde(default = "default_src20_from_block")]
+    pub from_block: Bound,
+    // Exclusive upper bound if is Some for block number
+    #[serde(default)]
+    pub to_block: Bound,
+
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub contract_id__in: HashSet<H256>,
+
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub asset_id__in: HashSet<H256>,
+
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub symbol__in: HashSet<String>,
+
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub name__in: HashSet<String>,
+
+    #[serde(default)]
+    pub decimals__gte: Option<u8>,
+
+    #[serde(default)]
+    pub decimals__lte: Option<u8>,
+}
+
+impl Default for GetSrc20 {
+    fn default() -> Self {
+        Self {
+            chains: default_chains(),
+            from_block: default_src20_from_block(),
+            to_block: Bound::default(),
+            contract_id__in: HashSet::new(),
+            asset_id__in: HashSet::new(),
+            symbol__in: HashSet::new(),
+            name__in: HashSet::new(),
+            decimals__gte: None,
+            decimals__lte: None,
+        }
+    }
+}
+
+fn default_src20_from_block() -> Bound {
+    Bound::Exact(0)
+}
+
+pub fn default_chains() -> HashSet<ChainId> {
+    HashSet::from([ChainId::FUELTESTNET])
 }

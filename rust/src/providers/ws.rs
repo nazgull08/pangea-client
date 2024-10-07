@@ -12,7 +12,7 @@ use futures::{
 use http::header;
 use serde::{Deserialize, Serialize};
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
-use tracing::{debug, error, warn};
+use tracing::{error, trace, warn};
 use tungstenite::{client::IntoClientRequest, Message};
 use uuid::Uuid;
 
@@ -29,8 +29,9 @@ use crate::{
         btc::{GetBtcBlocksRequest, GetBtcTxsRequest},
         erc20::{GetErc20ApprovalsRequest, GetErc20Request, GetErc20TransferssRequest},
         fuel::{
-            GetFuelBlocksRequest, GetFuelLogsRequest, GetFuelReceiptsRequest, GetFuelTxsRequest,
-            GetSparkOrderRequest, GetUtxoRequest,
+            GetFuelBlocksRequest, GetFuelLogsRequest, GetFuelMessagesRequest,
+            GetFuelReceiptsRequest, GetFuelTxsRequest, GetSparkOrderRequest, GetSrc20,
+            GetUtxoRequest,
         },
         logs::GetLogsRequest,
         transfers::GetTransfersRequest,
@@ -319,44 +320,40 @@ impl Erc20Provider for WsProvider {
 impl FuelProvider for WsProvider {
     async fn get_fuel_blocks_by_format(
         &self,
-        mut request: GetFuelBlocksRequest,
+        request: GetFuelBlocksRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        request.chains = HashSet::from_iter(vec![ChainId::FUEL]);
         self.request(Operation::GetFuelBlocks { params: request }, format, deltas)
             .await
     }
 
     async fn get_fuel_logs_by_format(
         &self,
-        mut request: GetFuelLogsRequest,
+        request: GetFuelLogsRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        request.chains = HashSet::from_iter(vec![ChainId::FUEL]);
         self.request(Operation::GetFuelLogs { params: request }, format, deltas)
             .await
     }
 
     async fn get_fuel_txs_by_format(
         &self,
-        mut request: GetFuelTxsRequest,
+        request: GetFuelTxsRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        request.chains = HashSet::from_iter(vec![ChainId::FUEL]);
         self.request(Operation::GetFuelTxs { params: request }, format, deltas)
             .await
     }
 
     async fn get_fuel_receipts_by_format(
         &self,
-        mut request: GetFuelReceiptsRequest,
+        request: GetFuelReceiptsRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        request.chains = HashSet::from_iter(vec![ChainId::FUEL]);
         self.request(
             Operation::GetFuelReceipts { params: request },
             format,
@@ -365,13 +362,22 @@ impl FuelProvider for WsProvider {
         .await
     }
 
-    async fn get_fuel_unspent_utxos_by_format(
+    async fn get_fuel_messages_by_format(
         &self,
-        mut request: GetUtxoRequest,
+        request: GetFuelMessagesRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        request.chains = HashSet::from_iter(vec![ChainId::FUEL]);
+        self.request(Operation::GetMessages { params: request }, format, deltas)
+            .await
+    }
+
+    async fn get_fuel_unspent_utxos_by_format(
+        &self,
+        request: GetUtxoRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>> {
         self.request(
             Operation::GetFuelUnspentUtxos { params: request },
             format,
@@ -382,12 +388,21 @@ impl FuelProvider for WsProvider {
 
     async fn get_fuel_spark_orders_by_format(
         &self,
-        mut request: GetSparkOrderRequest,
+        request: GetSparkOrderRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        request.chains = HashSet::from_iter(vec![ChainId::FUEL]);
         self.request(Operation::GetSparkOrder { params: request }, format, deltas)
+            .await
+    }
+
+    async fn get_fuel_src20_by_format(
+        &self,
+        request: GetSrc20,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        self.request(Operation::GetSrc20 { params: request }, format, deltas)
             .await
     }
 }
@@ -452,7 +467,7 @@ impl BackgroundWorker {
                     if let Err(e) = self.ws.send(Message::Ping(vec![])).await {
                         error!("Ping failed: {:?}", e);
                     } else {
-                        debug!("Sent WebSocket ping");
+                        trace!("Sent WebSocket ping");
                     }
                 }
                 operation = self.operations.select_next_some() => {
@@ -690,6 +705,11 @@ enum Operation {
         #[serde(flatten)]
         params: GetFuelReceiptsRequest,
     },
+    #[serde(rename = "getMessages")]
+    GetMessages {
+        #[serde(flatten)]
+        params: GetFuelMessagesRequest,
+    },
     #[serde(rename = "getUnspentUtxos")]
     GetFuelUnspentUtxos {
         #[serde(flatten)]
@@ -742,6 +762,10 @@ enum Operation {
     GetSparkOrder {
         #[serde(flatten)]
         params: requests::fuel::GetSparkOrderRequest,
+    },
+    GetSrc20 {
+        #[serde(flatten)]
+        params: requests::fuel::GetSrc20,
     },
 }
 

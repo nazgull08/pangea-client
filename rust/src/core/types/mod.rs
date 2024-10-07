@@ -28,20 +28,24 @@ pub enum ChainId {
     OPT = 10,
     #[strum(to_string = "BNB")]
     BNB = 56,
-    #[strum(to_string = "FUEL")]
-    FUEL = 122,
     #[strum(to_string = "MATIC")]
     MATIC = 137,
-    #[strum(to_string = "BTC")]
-    BTC = 198,
     #[strum(to_string = "MOVE")]
     MEVM = 336,
+    #[strum(to_string = "FUEL")]
+    FUEL = 9889,
     #[strum(to_string = "ARB")]
     ARB = 42161,
     #[strum(to_string = "AVAX")]
     AVAX = 43114,
+    #[strum(to_string = "BOB")]
+    BOB = 60_808,
     #[strum(to_string = "SEPETH")]
-    SEPETH = 1115511,
+    SEPOLIA = 1115511,
+    #[strum(to_string = "FUELTESTNET")]
+    FUELTESTNET = 2_147_483_646,
+    #[strum(to_string = "BTC")]
+    BTC = 2_147_483_647,
 }
 
 impl ChainId {
@@ -60,8 +64,10 @@ impl ChainId {
             Self::MATIC => "MATIC".to_string(),
             Self::FUEL => "FUEL".to_string(),
             Self::MEVM => "MEVM".to_string(),
-            Self::SEPETH => "SEPETH".to_string(),
+            Self::SEPOLIA => "SEPETH".to_string(),
             Self::BTC => "BTC".to_string(),
+            Self::BOB => "BOB".to_string(),
+            Self::FUELTESTNET => "FUELTESTNET".to_string(),
         }
     }
 
@@ -76,8 +82,10 @@ impl ChainId {
             Self::MATIC => "Polygon".to_string(),
             Self::FUEL => "Fuel".to_string(),
             Self::MEVM => "MEVM".to_string(),
-            Self::SEPETH => "Sepior".to_string(),
+            Self::SEPOLIA => "Sepolia".to_string(),
             Self::BTC => "Bitcoin".to_string(),
+            Self::BOB => "Bob".to_string(),
+            Self::FUELTESTNET => "Fuel Testnet".to_string(),
         }
     }
 }
