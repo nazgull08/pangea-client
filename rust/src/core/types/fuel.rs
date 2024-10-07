@@ -48,14 +48,22 @@ impl TryFrom<i32> for TransactionType {
 }
 
 #[derive(AsRefStr, Clone, Copy, Debug, Default, Hash, Deserialize, Serialize, PartialEq, Eq)]
-pub enum OrderChangeType {
+pub enum OrderEventType {
     #[default]
     #[serde(alias = "open")]
     Open = 0,
     #[serde(alias = "cancel")]
     Cancel = 1,
-    #[serde(alias = "match")]
-    Match = 2,
+    #[serde(alias = "trade")]
+    Trade = 2,
+}
+
+#[derive(AsRefStr, Clone, Copy, Debug, Default, Hash, Deserialize, Serialize, PartialEq, Eq)]
+pub enum LimitType {
+    #[default]
+    GTC = 0,
+    IOC = 1,
+    FOK = 2,
 }
 
 #[derive(AsRefStr, Clone, Copy, Debug, Default, Hash, Deserialize, Serialize, PartialEq, Eq)]
@@ -83,4 +91,11 @@ pub enum ReceiptType {
     MessageOut = 10,
     Mint = 11,
     Burn = 12,
+}
+
+#[derive(AsRefStr, Clone, Copy, Debug, Default, Hash, Deserialize, Serialize, PartialEq, Eq)]
+pub enum MessageType {
+    #[default]
+    Incoming = 0,
+    Outgoing = 1,
 }

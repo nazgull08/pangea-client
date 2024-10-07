@@ -10,7 +10,7 @@ use super::{
         self,
         blocks::GetBlocksRequest,
         btc::{GetBtcBlocksRequest, GetBtcTxsRequest},
-        fuel::{GetFuelReceiptsRequest, GetUtxoRequest},
+        fuel::{GetFuelReceiptsRequest, GetSrc20, GetUtxoRequest},
         logs::GetLogsRequest,
         txs::GetTxsRequest,
         uniswap_v2::GetPairsRequest,
@@ -245,6 +245,8 @@ where
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
+        self.check_chain(&request.chains)?;
+
         self.inner
             .get_fuel_blocks_by_format(request, format, deltas)
             .await
@@ -256,6 +258,8 @@ where
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
+        self.check_chain(&request.chains)?;
+
         self.inner
             .get_fuel_logs_by_format(request, format, deltas)
             .await
@@ -267,6 +271,8 @@ where
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
+        self.check_chain(&request.chains)?;
+
         self.inner
             .get_fuel_txs_by_format(request, format, deltas)
             .await
@@ -278,8 +284,23 @@ where
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
+        self.check_chain(&request.chains)?;
+
         self.inner
             .get_fuel_receipts_by_format(request, format, deltas)
+            .await
+    }
+
+    async fn get_fuel_messages_by_format(
+        &self,
+        request: requests::fuel::GetFuelMessagesRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        self.check_chain(&request.chains)?;
+
+        self.inner
+            .get_fuel_messages_by_format(request, format, deltas)
             .await
     }
 
@@ -289,6 +310,8 @@ where
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
+        self.check_chain(&request.chains)?;
+
         self.inner
             .get_fuel_unspent_utxos_by_format(request, format, deltas)
             .await
@@ -300,8 +323,23 @@ where
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
+        self.check_chain(&request.chains)?;
+
         self.inner
             .get_fuel_spark_orders_by_format(request, format, deltas)
+            .await
+    }
+
+    async fn get_fuel_src20_by_format(
+        &self,
+        request: GetSrc20,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        self.check_chain(&request.chains)?;
+
+        self.inner
+            .get_fuel_src20_by_format(request, format, deltas)
             .await
     }
 }

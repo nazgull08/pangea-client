@@ -1,4 +1,6 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashSet};
+
+use crate::ChainId;
 
 /// A Result alias, that uses [`Error`] as the default error
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -73,6 +75,9 @@ pub enum Error {
 
     #[error(transparent)]
     RequestID(#[from] uuid::Error),
+
+    #[error("invalid chain id: {0:?}")]
+    InvalidChainId(HashSet<ChainId>),
 }
 
 /// An error that is returned by the server if something goes wrong

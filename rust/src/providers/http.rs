@@ -21,7 +21,7 @@ use crate::{
         erc20::{GetErc20ApprovalsRequest, GetErc20Request, GetErc20TransferssRequest},
         fuel::{
             GetFuelBlocksRequest, GetFuelLogsRequest, GetFuelReceiptsRequest, GetFuelTxsRequest,
-            GetSparkOrderRequest, GetUtxoRequest,
+            GetSparkOrderRequest, GetSrc20, GetUtxoRequest,
         },
         transfers::GetTransfersRequest,
     },
@@ -285,73 +285,89 @@ const FUEL_LOGS_PATH: &str = "logs";
 const FUEL_TRANSACTIONS_PATH: &str = "transactions";
 const FUEL_UNSPENT_UTXOS_PATH: &str = "transactions/outputs";
 const FUEL_RECEIPTS_PATH: &str = "receipts";
+const FUEL_MESSAGES_PATH: &str = "messages";
 const FUEL_SPARK_ORDER_PATH: &str = "spark/orders";
+const FUEL_SRC20_PATH: &str = "src20";
 
 #[async_trait]
 impl FuelProvider for HttpProvider {
     async fn get_fuel_blocks_by_format(
         &self,
-        mut request: GetFuelBlocksRequest,
+        request: GetFuelBlocksRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
-        request.chains = HashSet::from_iter(vec![ChainId::FUEL]);
         let url = self.url(FUEL_BLOCKS_PATH)?;
         self.request(url, request, format).await
     }
 
     async fn get_fuel_logs_by_format(
         &self,
-        mut request: GetFuelLogsRequest,
+        request: GetFuelLogsRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
-        request.chains = HashSet::from_iter(vec![ChainId::FUEL]);
         let url = self.url(FUEL_LOGS_PATH)?;
         self.request(url, request, format).await
     }
 
     async fn get_fuel_txs_by_format(
         &self,
-        mut request: GetFuelTxsRequest,
+        request: GetFuelTxsRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
-        request.chains = HashSet::from_iter(vec![ChainId::FUEL]);
         let url = self.url(FUEL_TRANSACTIONS_PATH)?;
         self.request(url, request, format).await
     }
 
     async fn get_fuel_receipts_by_format(
         &self,
-        mut request: GetFuelReceiptsRequest,
+        request: GetFuelReceiptsRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
-        request.chains = HashSet::from_iter(vec![ChainId::FUEL]);
         let url = self.url(FUEL_RECEIPTS_PATH)?;
+        self.request(url, request, format).await
+    }
+
+    async fn get_fuel_messages_by_format(
+        &self,
+        request: requests::fuel::GetFuelMessagesRequest,
+        format: Format,
+        _: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        let url = self.url(FUEL_MESSAGES_PATH)?;
         self.request(url, request, format).await
     }
 
     async fn get_fuel_unspent_utxos_by_format(
         &self,
-        mut request: GetUtxoRequest,
+        request: GetUtxoRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
-        request.chains = HashSet::from_iter(vec![ChainId::FUEL]);
         let url = self.url(FUEL_UNSPENT_UTXOS_PATH)?;
         self.request(url, request, format).await
     }
 
     async fn get_fuel_spark_orders_by_format(
         &self,
-        mut request: GetSparkOrderRequest,
+        request: GetSparkOrderRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
-        request.chains = HashSet::from_iter(vec![ChainId::FUEL]);
         let url = self.url(FUEL_SPARK_ORDER_PATH)?;
+        self.request(url, request, format).await
+    }
+
+    async fn get_fuel_src20_by_format(
+        &self,
+        request: GetSrc20,
+        format: Format,
+        _: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        let url = self.url(FUEL_SRC20_PATH)?;
         self.request(url, request, format).await
     }
 }
