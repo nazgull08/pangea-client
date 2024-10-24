@@ -465,7 +465,7 @@ impl BackgroundWorker {
         loop {
             select_biased! {
                 _ = ping_interval.tick().fuse() => {
-                    if( latest_msg_stamp.elapsed().as_secs_f64() > 9.0){
+                    if latest_msg_stamp.elapsed().as_secs_f64() > 9.0 {
                         error!("WebSocket msg timeout");
                         if !self.attempt_reconnect().await {
                             break;
