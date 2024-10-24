@@ -11,6 +11,7 @@ use futures::{
 };
 use http::header;
 use serde::{Deserialize, Serialize};
+use tokio::time::Instant;
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 use tracing::{error, trace, warn};
 use tungstenite::{client::IntoClientRequest, Message};
@@ -459,11 +460,17 @@ impl BackgroundWorker {
     }
 
     pub async fn main_loop(mut self) {
-        let mut ping_interval = tokio::time::interval(Duration::from_secs(30));
-
+        let mut ping_interval = tokio::time::interval(Duration::from_secs(5));
+        let mut latest_msg_stamp = Instant::now();
         loop {
             select_biased! {
                 _ = ping_interval.tick().fuse() => {
+                    if( latest_msg_stamp.elapsed().as_secs_f64() > 9.0){
+                        error!("WebSocket msg timeout");
+                        if !self.attempt_reconnect().await {
+                            break;
+                        }
+                    }
                     if let Err(e) = self.ws.send(Message::Ping(vec![])).await {
                         error!("Ping failed: {:?}", e);
                     } else {
@@ -478,6 +485,7 @@ impl BackgroundWorker {
                 resp = self.ws.try_next() => {
                     match resp {
                         Ok(Some(message)) => {
+                            latest_msg_stamp = Instant::now();
                             if let Err(e) = self.handle(message).await {
                                 error!("Failed to handle message: {:?}", e);
                             }
