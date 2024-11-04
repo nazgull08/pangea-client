@@ -12,6 +12,8 @@ pub enum Error {
     /// This should usually not happen
     #[error("The connection was closed unexpectedly")]
     UnexpectedClose,
+    #[error("The server did not respond with a PONG in time")]
+    PingTimeout,
     /// The server sent and unexpected WebSocket message
     /// This should usually not happen
     #[error("The server sent an unexpected message")]

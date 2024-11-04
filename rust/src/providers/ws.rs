@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt::Debug,
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use async_trait::async_trait;
@@ -11,9 +11,8 @@ use futures::{
 };
 use http::header;
 use serde::{Deserialize, Serialize};
-use tokio::time::Instant;
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
-use tracing::{error, trace, warn};
+use tracing::{error, warn};
 use tungstenite::{client::IntoClientRequest, Message};
 use uuid::Uuid;
 
@@ -437,9 +436,6 @@ struct BackgroundWorker {
     ws: WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>,
     operations: Fuse<mpsc::UnboundedReceiver<OperationMsg>>,
     subscriptions: HashMap<Uuid, mpsc::UnboundedSender<Result<Vec<u8>>>>,
-    subscription_requests: HashMap<Uuid, Request>,
-    subscription_cursor: HashMap<Uuid, String>,
-    ws_server: http::Request<()>,
 }
 
 impl BackgroundWorker {
@@ -447,106 +443,61 @@ impl BackgroundWorker {
         ws_server: http::Request<()>,
         operations: mpsc::UnboundedReceiver<OperationMsg>,
     ) -> Result<Self> {
-        let (ws, _) = connect_async(ws_server.clone()).await?;
+        let (ws, _) = connect_async(ws_server).await?;
 
         Ok(Self {
             ws,
             operations: operations.fuse(),
             subscriptions: HashMap::default(),
-            ws_server,
-            subscription_requests: HashMap::default(),
-            subscription_cursor: HashMap::default(),
         })
     }
 
     pub async fn main_loop(mut self) {
+        let Err(err) = self.try_run().await else {
+            return;
+        };
+
+        error!("Websocket connection failed: {err}");
+
+        let err = err.to_string();
+        for sub in self.subscriptions.values_mut() {
+            let _ = sub.send(Err(Error::ErrorMsg(err.clone()))).await;
+        }
+    }
+
+    async fn try_run(&mut self) -> Result<()> {
         let mut ping_interval = tokio::time::interval(Duration::from_secs(5));
         let mut latest_msg_stamp = Instant::now();
+
         loop {
             select_biased! {
                 _ = ping_interval.tick().fuse() => {
                     if latest_msg_stamp.elapsed().as_secs_f64() > 9.0 {
-                        error!("WebSocket msg timeout");
-                        if !self.attempt_reconnect().await {
-                            break;
-                        }
+                        return Err(Error::PingTimeout);
                     }
-                    if let Err(e) = self.ws.send(Message::Ping(vec![])).await {
-                        error!("Ping failed: {:?}", e);
-                    } else {
-                        trace!("Sent WebSocket ping");
-                    }
+                    self.ws.send(Message::Ping(Vec::new())).await?
                 }
-                operation = self.operations.select_next_some() => {
-                    if let Err(e) = self.operate(operation).await {
-                        error!("Operation error: {:?}", e);
+                operation = self.operations.next() => {
+                    match operation {
+                        Some(operation) => self.operate(operation).await?,
+                        None => {
+                            self.ws.close(None).await?;
+                            return Ok(())
+                        },
                     }
                 }
                 resp = self.ws.try_next() => {
                     match resp {
                         Ok(Some(message)) => {
                             latest_msg_stamp = Instant::now();
-                            if let Err(e) = self.handle(message).await {
-                                error!("Failed to handle message: {:?}", e);
-                            }
+                            self.handle(message).await?;
                         }
-                        Ok(None) => {
-                            error!("Websocket connection closed unexpectedly");
-                            if !self.attempt_reconnect().await {
-                                break;
-                            }
-                        }
-                        Err(e) => {
-                            error!("WebSocket error: {:?}", e);
-                            if !self.attempt_reconnect().await {
-                                break;
-                            }
-                        }
+                        Ok(None) => return Err(Error::UnexpectedClose),
+                        Err(e) => return Err(Error::Tungstenite(e)),
                     }
                 }
             }
         }
-    }
-
-    async fn attempt_reconnect(&mut self) -> bool {
-        for _ in 0..100 {
-            match connect_async(self.ws_server.clone()).await {
-                Ok((new_ws, _)) => {
-                    self.ws = new_ws;
-
-                    // re-subscribe to all subscriptions
-                    for (id, request) in self.subscription_requests.iter() {
-                        let mut req = request.clone();
-                        req.cursor = self
-                            .subscription_cursor
-                            .get(id)
-                            .cloned()
-                            .unwrap_or(request.cursor.clone());
-
-                        let Ok(payload) = serde_json::to_vec(&req) else {
-                            error!(
-                                "Failed to re-subscribe to id {:?}: failed to serialize request",
-                                id
-                            );
-                            continue;
-                        };
-
-                        if let Err(e) = self.ws.send(Message::Binary(payload)).await {
-                            error!("Failed to re-subscribe to id {:?}: {:?}", id, e);
-                        }
-                    }
-
-                    return true;
-                }
-                Err(e) => {
-                    warn!("Reconnect attempt failed: {:?}", e);
-                }
-            }
-            tokio::time::sleep(Duration::from_secs(5)).await;
-        }
-
-        error!("Failed to reconnect to WebSocket server after 100 attempts");
-        false
     }
 
     async fn operate(&mut self, operation: OperationMsg) -> Result<()> {
@@ -557,27 +508,14 @@ impl BackgroundWorker {
             operation,
             format,
             deltas,
-            cursor: self
-                .subscription_cursor
-                .get(&id)
-                .cloned()
-                .unwrap_or_default(),
         };
         let payload = serde_json::to_vec(&request)?;
-
-        self.subscription_requests.insert(id, request);
 
         if self.subscriptions.insert(id, sink).is_some() {
             warn!("Replacing already-registered subscription with id {:?}", id);
         }
 
-        if let Err(e) = self.ws.send(Message::Binary(payload)).await {
-            error!("WS connection error: {:?}", e);
-            let sink = self.subscriptions.remove(&id);
-            if let Some(sink) = sink {
-                sink.close_channel();
-            }
-        }
+        self.ws.send(Message::Binary(payload)).await?;
 
         Ok(())
     }
@@ -606,12 +544,7 @@ impl BackgroundWorker {
             Kind::Start => {
                 return Ok(());
             }
-            Kind::Continue => {
-                if let Some(cursor) = header.cursor {
-                    self.subscription_cursor.insert(id.0, cursor);
-                }
-                Ok(data)
-            }
+            Kind::Continue => Ok(data),
             Kind::ContinueWithError => match data.first() {
                 Some(b'{') => match serde_json::from_slice::<ResponseError>(&data) {
                     Ok(err) => Err(Error::ErrorResponse(err)),
@@ -663,8 +596,6 @@ struct Request {
     format: Format,
     #[serde(default)]
     deltas: bool,
-    #[serde(default)]
-    cursor: String,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -785,7 +716,6 @@ struct Header {
     pub _counter: u32,
     #[serde(rename = "epoch")]
     pub _epoch: Option<u64>,
-    pub cursor: Option<String>,
 }
 
 impl Header {
