@@ -9,7 +9,7 @@ use super::{
         self,
         blocks::GetBlocksRequest,
         btc::{GetBtcBlocksRequest, GetBtcTxsRequest},
-        fuel::{GetFuelReceiptsRequest, GetSrc20, GetUtxoRequest},
+        fuel::{GetFuelReceiptsRequest, GetSparkMarketRequest, GetSrc20, GetSrc7, GetUtxoRequest},
         logs::GetLogsRequest,
         txs::GetTxsRequest,
         uniswap_v2::GetPairsRequest,
@@ -166,6 +166,13 @@ pub trait FuelProvider {
         deltas: bool,
     ) -> StreamResponse<Vec<u8>>;
 
+    async fn get_fuel_logs_decoded_by_format(
+        &self,
+        request: GetFuelLogsRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>>;
+
     async fn get_fuel_txs_by_format(
         &self,
         request: GetFuelTxsRequest,
@@ -194,6 +201,13 @@ pub trait FuelProvider {
         deltas: bool,
     ) -> StreamResponse<Vec<u8>>;
 
+    async fn get_fuel_spark_markets_by_format(
+        &self,
+        request: GetSparkMarketRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>>;
+
     async fn get_fuel_spark_orders_by_format(
         &self,
         request: GetSparkOrderRequest,
@@ -204,6 +218,13 @@ pub trait FuelProvider {
     async fn get_fuel_src20_by_format(
         &self,
         request: GetSrc20,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>>;
+
+    async fn get_fuel_src7_by_format(
+        &self,
+        request: GetSrc7,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>>;

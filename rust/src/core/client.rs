@@ -10,7 +10,7 @@ use super::{
         self,
         blocks::GetBlocksRequest,
         btc::{GetBtcBlocksRequest, GetBtcTxsRequest},
-        fuel::{GetFuelReceiptsRequest, GetSrc20, GetUtxoRequest},
+        fuel::{GetFuelReceiptsRequest, GetSparkMarketRequest, GetSrc20, GetSrc7, GetUtxoRequest},
         logs::GetLogsRequest,
         txs::GetTxsRequest,
         uniswap_v2::GetPairsRequest,
@@ -265,6 +265,19 @@ where
             .await
     }
 
+    async fn get_fuel_logs_decoded_by_format(
+        &self,
+        request: GetFuelLogsRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        self.check_chain(&request.chains)?;
+
+        self.inner
+            .get_fuel_logs_decoded_by_format(request, format, deltas)
+            .await
+    }
+
     async fn get_fuel_txs_by_format(
         &self,
         request: GetFuelTxsRequest,
@@ -317,6 +330,19 @@ where
             .await
     }
 
+    async fn get_fuel_spark_markets_by_format(
+        &self,
+        request: GetSparkMarketRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        self.check_chain(&request.chains)?;
+
+        self.inner
+            .get_fuel_spark_markets_by_format(request, format, deltas)
+            .await
+    }
+
     async fn get_fuel_spark_orders_by_format(
         &self,
         request: GetSparkOrderRequest,
@@ -340,6 +366,19 @@ where
 
         self.inner
             .get_fuel_src20_by_format(request, format, deltas)
+            .await
+    }
+
+    async fn get_fuel_src7_by_format(
+        &self,
+        request: GetSrc7,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        self.check_chain(&request.chains)?;
+
+        self.inner
+            .get_fuel_src7_by_format(request, format, deltas)
             .await
     }
 }

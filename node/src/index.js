@@ -13,9 +13,9 @@ const _buffer = require("buffer");
 const _ws = require("ws");
 function applyDefaults(options) {
     return {
-        endpoint: options.endpoint || 'app.pangea.foundation',
         username: options.username,
         password: options.password,
+        endpoint: options.endpoint || "app.pangea.foundation",
         isSecure: options.isSecure === undefined ? true : options.isSecure
     };
 }
@@ -27,7 +27,7 @@ let Client = class Client {
             }
             await this.waitForConnection();
         } catch (error) {
-            console.error('WebSocket connection error:', error);
+            console.error("WebSocket connection error:", error);
             throw error;
         }
     }
@@ -61,7 +61,7 @@ let Client = class Client {
     async *handle_request(id) {
         const queue = [];
         // Register a message event listener
-        this.connection?.on('message', async (raw_data)=>{
+        this.connection?.on("message", async (raw_data)=>{
             if (!raw_data) {
                 return;
             }
@@ -70,7 +70,7 @@ let Client = class Client {
                 data = _buffer.Buffer.from(raw_data);
             } else if (raw_data instanceof _buffer.Buffer) {
                 data = raw_data;
-            } else if (typeof raw_data === 'string') {
+            } else if (typeof raw_data === "string") {
                 data = _buffer.Buffer.from(raw_data);
             } else if (Array.isArray(raw_data)) {
                 data = _buffer.Buffer.concat(raw_data);
@@ -78,14 +78,14 @@ let Client = class Client {
                 let buffer = await data.arrayBuffer();
                 data = _buffer.Buffer.from(buffer);
             }
-            const newlineIndex = data.indexOf('\n');
+            const newlineIndex = data.indexOf("\n");
             if (newlineIndex === -1) {
                 return;
             }
             const headerJSON = data.subarray(0, newlineIndex).toString();
             const body = data.subarray(newlineIndex + 1); // Preserving the body as bytes
             const header = JSON.parse(headerJSON);
-            if (header.id === _uuid.NIL && header.kind === 'Error') {
+            if (header.id === _uuid.NIL && header.kind === "Error") {
                 throw new Error(body.toString());
             }
             if (header.id !== id) return;
@@ -104,19 +104,19 @@ let Client = class Client {
                 continue;
             }
             const { header, body } = item;
-            if (header?.kind && header.kind.startsWith('Continue') && item.header.cursor && this.subscriptions.get(id)) {
+            if (header?.kind && header.kind.startsWith("Continue") && item.header.cursor && this.subscriptions.get(id)) {
                 this.subscriptions.get(id).cursor = item.header.cursor;
             }
-            if (header.kind === 'Start') {
+            if (header.kind === "Start") {
                 continue;
             } else if ([
-                'Continue',
-                'ContinueWithError'
+                "Continue",
+                "ContinueWithError"
             ].includes(header.kind)) {
                 yield body;
-            } else if (header.kind === 'Error') {
+            } else if (header.kind === "Error") {
                 throw new Error(body.toString());
-            } else if (header.kind === 'End') {
+            } else if (header.kind === "End") {
                 break;
             } else {
                 throw new Error(`Unexpected kind of response from server: ${header.kind}`);
@@ -130,7 +130,7 @@ let Client = class Client {
         if (this.connection && this.connection.readyState === _ws.WebSocket.OPEN) {
             return;
         }
-        console.log('Connection lost. Attempting to reconnect...');
+        console.log("Connection lost. Attempting to reconnect...");
         try {
             await this.connect();
         } catch (error) {
@@ -169,144 +169,168 @@ let Client = class Client {
             const onOpen = ()=>{
                 clearTimeout(timeoutId);
                 resolve();
-                this.connection?.removeEventListener('open', onOpen);
+                this.connection?.removeEventListener("open", onOpen);
             };
             const onError = (error)=>{
-                console.log('WebSocket connection error:', error);
+                console.log("WebSocket connection error:", error);
                 clearTimeout(timeoutId);
                 reject(error);
-                this.connection?.removeEventListener('error', onError);
+                this.connection?.removeEventListener("error", onError);
             };
             const timeoutId = setTimeout(()=>{
-                reject(new Error('WebSocket connection timed out'));
-                this.connection?.removeEventListener('open', onOpen);
-                this.connection?.removeEventListener('error', onError);
+                reject(new Error("WebSocket connection timed out"));
+                this.connection?.removeEventListener("open", onOpen);
+                this.connection?.removeEventListener("error", onError);
             }, timeout);
-            this.connection?.addEventListener('open', onOpen);
-            this.connection?.addEventListener('error', onError);
+            this.connection?.addEventListener("open", onOpen);
+            this.connection?.addEventListener("error", onError);
         });
     }
-    async get_status(format = 'json_stream') {
-        return await this.send_request('getStatus', {
+    async get_status(format = "json_stream") {
+        return await this.send_request("getStatus", {
             format
         });
     }
-    async get_blocks(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getBlocks', params, {
+    async get_blocks(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getBlocks", params, {
             deltas,
             format
         });
     }
-    async get_logs(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getLogs', params, {
+    async get_logs(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getLogs", params, {
             deltas,
             format
         });
     }
-    async get_transactions(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getTxs', params, {
+    async get_logs_decoded(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getDecodedLogs", params, {
             deltas,
             format
         });
     }
-    async get_receipts(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getReceipts', params, {
+    async get_transactions(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getTxs", params, {
             deltas,
             format
         });
     }
-    async get_contracts(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getContracts', params, {
+    async get_receipts(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getReceipts", params, {
             deltas,
             format
         });
     }
-    async get_uniswap_v2_pairs(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getUniswapV2Pairs', params, {
+    async get_contracts(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getContracts", params, {
             deltas,
             format
         });
     }
-    async get_uniswap_v2_prices(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getUniswapV2Prices', params, {
+    async get_uniswap_v2_pairs(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getUniswapV2Pairs", params, {
             deltas,
             format
         });
     }
-    async get_uniswap_v3_pools(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getUniswapV3Pools', params, {
+    async get_uniswap_v2_prices(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getUniswapV2Prices", params, {
             deltas,
             format
         });
     }
-    async get_uniswap_v3_fees(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getUniswapV3Fees', params, {
+    async get_uniswap_v3_pools(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getUniswapV3Pools", params, {
             deltas,
             format
         });
     }
-    async get_uniswap_v3_positions(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getUniswapV3Positions', params, {
+    async get_uniswap_v3_fees(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getUniswapV3Fees", params, {
             deltas,
             format
         });
     }
-    async get_uniswap_v3_prices(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getUniswapV3Prices', params, {
+    async get_uniswap_v3_positions(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getUniswapV3Positions", params, {
             deltas,
             format
         });
     }
-    async get_curve_tokens(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getCurveTokens', params, {
+    async get_uniswap_v3_prices(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getUniswapV3Prices", params, {
             deltas,
             format
         });
     }
-    async get_curve_pools(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getCurvePools', params, {
+    async get_curve_tokens(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getCurveTokens", params, {
             deltas,
             format
         });
     }
-    async get_curve_prices(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getCurvePrices', params, {
+    async get_curve_pools(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getCurvePools", params, {
             deltas,
             format
         });
     }
-    async get_transfers(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getTransfers', params, {
+    async get_curve_prices(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getCurvePrices", params, {
             deltas,
             format
         });
     }
-    async get_erc20_tokens(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getErc20', params, {
+    async get_transfers(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getTransfers", params, {
             deltas,
             format
         });
     }
-    async get_erc20_approvals(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getErc20Approvals', params, {
+    async get_erc20_tokens(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getErc20", params, {
             deltas,
             format
         });
     }
-    async get_erc20_transfers(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getErc20Transfers', params, {
+    async get_erc20_approvals(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getErc20Approvals", params, {
             deltas,
             format
         });
     }
-    async get_fuel_spark_orders(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getSparkOrder', params, {
+    async get_erc20_transfers(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getErc20Transfers", params, {
             deltas,
             format
         });
     }
-    async get_fuel_unspent_utxos(params, deltas = false, format = 'json_stream') {
-        return await this.send_request('getUnspentUtxos', params, {
+    async get_fuel_spark_markets(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getSparkMarket", params, {
+            deltas,
+            format
+        });
+    }
+    async get_fuel_spark_orders(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getSparkOrder", params, {
+            deltas,
+            format
+        });
+    }
+    async get_fuel_unspent_utxos(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getUnspentUtxos", params, {
+            deltas,
+            format
+        });
+    }
+    async get_fuel_src20_metadata(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getSrc20", params, {
+            deltas,
+            format
+        });
+    }
+    async get_fuel_src7_metadata(params, deltas = false, format = "json_stream") {
+        return await this.send_request("getSrc7", params, {
             deltas,
             format
         });

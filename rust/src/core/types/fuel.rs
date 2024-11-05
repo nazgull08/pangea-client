@@ -48,6 +48,15 @@ impl TryFrom<i32> for TransactionType {
 }
 
 #[derive(AsRefStr, Clone, Copy, Debug, Default, Hash, Deserialize, Serialize, PartialEq, Eq)]
+pub enum MarketEventType {
+    #[default]
+    #[serde(alias = "register")]
+    Register = 1,
+    #[serde(alias = "unregister")]
+    Unregister = 0,
+}
+
+#[derive(AsRefStr, Clone, Copy, Debug, Default, Hash, Deserialize, Serialize, PartialEq, Eq)]
 pub enum OrderEventType {
     #[default]
     #[serde(alias = "open")]

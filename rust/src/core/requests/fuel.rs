@@ -5,7 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     core::types::{
-        fuel::{LimitType, MessageType, OrderEventType, OrderType, ReceiptType, TransactionType},
+        fuel::{
+            LimitType, MarketEventType, MessageType, OrderEventType, OrderType, ReceiptType,
+            TransactionType,
+        },
         ChainId,
     },
     query::Bound,
@@ -276,6 +279,57 @@ impl Default for GetFuelMessagesRequest {
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 #[allow(non_snake_case)]
+pub struct GetSparkMarketRequest {
+    #[serde(default = "default_chains")]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub chains: HashSet<ChainId>,
+
+    // Inclusive lower bound if is Some for block number
+    pub from_block: Bound,
+    // Inclusive upper bound if is Some for block number
+    pub to_block: Bound,
+
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub event_type__in: HashSet<MarketEventType>,
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub base_asset__in: HashSet<H256>,
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub quote_asset__in: HashSet<H256>,
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub market_id__in: HashSet<H256>,
+}
+
+impl Default for GetSparkMarketRequest {
+    fn default() -> Self {
+        Self {
+            chains: default_chains(),
+            from_block: Bound::default(),
+            to_block: Bound::default(),
+            event_type__in: HashSet::default(),
+            base_asset__in: HashSet::default(),
+            quote_asset__in: HashSet::default(),
+            market_id__in: HashSet::default(),
+        }
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug)]
+#[allow(non_snake_case)]
 pub struct GetSparkOrderRequest {
     #[serde(default = "default_chains")]
     #[serde(
@@ -472,4 +526,56 @@ fn default_src20_from_block() -> Bound {
 
 pub fn default_chains() -> HashSet<ChainId> {
     HashSet::from([ChainId::FUELTESTNET])
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug)]
+#[allow(non_snake_case)]
+pub struct GetSrc7 {
+    #[serde(default = "default_chains")]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub chains: HashSet<ChainId>,
+
+    // Inclusive lower bound if is Some for block number
+    #[serde(default = "default_src20_from_block")]
+    pub from_block: Bound,
+    // Exclusive upper bound if is Some for block number
+    #[serde(default)]
+    pub to_block: Bound,
+
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub asset__in: HashSet<H256>,
+
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub key__in: HashSet<String>,
+
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub sender__in: HashSet<H256>,
+}
+
+impl Default for GetSrc7 {
+    fn default() -> Self {
+        Self {
+            chains: default_chains(),
+            from_block: default_src20_from_block(),
+            to_block: Bound::default(),
+            asset__in: HashSet::default(),
+            key__in: HashSet::default(),
+            sender__in: HashSet::default(),
+        }
+    }
 }

@@ -1,9 +1,7 @@
 use futures::StreamExt;
 use pangea_client::{
-    provider::ChainProvider, query::Bound, requests::blocks::GetBlocksRequest, ClientBuilder,
-    core::types::ChainId,
-    Format,
-    WsProvider,
+    core::types::ChainId, provider::ChainProvider, query::Bound,
+    requests::blocks::GetBlocksRequest, ClientBuilder, Format, WsProvider,
 };
 use std::collections::HashSet;
 

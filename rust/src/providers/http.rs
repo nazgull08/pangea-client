@@ -21,7 +21,7 @@ use crate::{
         erc20::{GetErc20ApprovalsRequest, GetErc20Request, GetErc20TransferssRequest},
         fuel::{
             GetFuelBlocksRequest, GetFuelLogsRequest, GetFuelReceiptsRequest, GetFuelTxsRequest,
-            GetSparkOrderRequest, GetSrc20, GetUtxoRequest,
+            GetSparkMarketRequest, GetSparkOrderRequest, GetSrc20, GetSrc7, GetUtxoRequest,
         },
         transfers::GetTransfersRequest,
     },
@@ -282,12 +282,15 @@ impl Erc20Provider for HttpProvider {
 
 const FUEL_BLOCKS_PATH: &str = "blocks";
 const FUEL_LOGS_PATH: &str = "logs";
+const FUEL_LOGS_DECODED_PATH: &str = "logs/decoded";
 const FUEL_TRANSACTIONS_PATH: &str = "transactions";
 const FUEL_UNSPENT_UTXOS_PATH: &str = "transactions/outputs";
 const FUEL_RECEIPTS_PATH: &str = "receipts";
 const FUEL_MESSAGES_PATH: &str = "messages";
 const FUEL_SPARK_ORDER_PATH: &str = "spark/orders";
+const FUEL_SPARK_MARKET_PATH: &str = "spark/markets";
 const FUEL_SRC20_PATH: &str = "src20";
+const FUEL_SRC7_PATH: &str = "src7";
 
 #[async_trait]
 impl FuelProvider for HttpProvider {
@@ -308,6 +311,16 @@ impl FuelProvider for HttpProvider {
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
         let url = self.url(FUEL_LOGS_PATH)?;
+        self.request(url, request, format).await
+    }
+
+    async fn get_fuel_logs_decoded_by_format(
+        &self,
+        request: GetFuelLogsRequest,
+        format: Format,
+        _: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        let url = self.url(FUEL_LOGS_DECODED_PATH)?;
         self.request(url, request, format).await
     }
 
@@ -351,6 +364,16 @@ impl FuelProvider for HttpProvider {
         self.request(url, request, format).await
     }
 
+    async fn get_fuel_spark_markets_by_format(
+        &self,
+        request: GetSparkMarketRequest,
+        format: Format,
+        _: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        let url = self.url(FUEL_SPARK_MARKET_PATH)?;
+        self.request(url, request, format).await
+    }
+
     async fn get_fuel_spark_orders_by_format(
         &self,
         request: GetSparkOrderRequest,
@@ -368,6 +391,16 @@ impl FuelProvider for HttpProvider {
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
         let url = self.url(FUEL_SRC20_PATH)?;
+        self.request(url, request, format).await
+    }
+
+    async fn get_fuel_src7_by_format(
+        &self,
+        request: GetSrc7,
+        format: Format,
+        _: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        let url = self.url(FUEL_SRC7_PATH)?;
         self.request(url, request, format).await
     }
 }

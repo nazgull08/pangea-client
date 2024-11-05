@@ -1,6 +1,6 @@
-import { v4 as uuidv4, NIL as uuidNil } from 'uuid';
-import { Buffer } from 'buffer';
-import { WebSocket, RawData } from 'ws';
+import { v4 as uuidv4, NIL as uuidNil } from "uuid";
+import { Buffer } from "buffer";
+import { WebSocket, RawData } from "ws";
 
 export interface ClientOptions {
   endpoint?: string;
@@ -13,7 +13,7 @@ function applyDefaults(options: ClientOptions): ClientOptions {
   return {
     username: options.username,
     password: options.password,
-    endpoint: options.endpoint || 'app.pangea.foundation',
+    endpoint: options.endpoint || "app.pangea.foundation",
     isSecure: options.isSecure === undefined ? true : options.isSecure,
   };
 }
@@ -21,7 +21,7 @@ function applyDefaults(options: ClientOptions): ClientOptions {
 export class Client {
   endpoint: string;
   connection: WebSocket;
-  subscriptions: Map<string, { request: any, cursor: string | null }>;
+  subscriptions: Map<string, { request: any; cursor: string | null }>;
 
   constructor(options: ClientOptions) {
     options = applyDefaults(options);
@@ -40,7 +40,6 @@ export class Client {
   }
 
   async connect() {
-
     try {
       if (!this.connection || this.connection.readyState === WebSocket.CLOSED) {
         this.connection = new WebSocket(this.endpoint);
@@ -48,7 +47,7 @@ export class Client {
 
       await this.waitForConnection();
     } catch (error) {
-      console.error('WebSocket connection error:', error);
+      console.error("WebSocket connection error:", error);
       throw error;
     }
   }
@@ -86,7 +85,7 @@ export class Client {
     const queue: { header: Header; body: Buffer }[] = [];
 
     // Register a message event listener
-    this.connection?.on('message', async (raw_data: RawData) => {
+    this.connection?.on("message", async (raw_data: RawData) => {
       if (!raw_data) {
         return;
       }
@@ -96,7 +95,7 @@ export class Client {
         data = Buffer.from(raw_data);
       } else if (raw_data instanceof Buffer) {
         data = raw_data;
-      } else if (typeof raw_data === 'string') {
+      } else if (typeof raw_data === "string") {
         data = Buffer.from(raw_data);
       } else if (Array.isArray(raw_data)) {
         data = Buffer.concat(raw_data);
@@ -105,7 +104,7 @@ export class Client {
         data = Buffer.from(buffer);
       }
 
-      const newlineIndex = data.indexOf('\n');
+      const newlineIndex = data.indexOf("\n");
       if (newlineIndex === -1) {
         return;
       }
@@ -115,7 +114,7 @@ export class Client {
 
       const header = JSON.parse(headerJSON);
 
-      if (header.id === uuidNil && header.kind === 'Error') {
+      if (header.id === uuidNil && header.kind === "Error") {
         throw new Error(body.toString());
       }
 
@@ -137,19 +136,24 @@ export class Client {
 
       const { header, body } = item;
 
-      if (header?.kind && header.kind.startsWith('Continue') && item.header.cursor && this.subscriptions.get(id)) {
+      if (
+        header?.kind &&
+        header.kind.startsWith("Continue") &&
+        item.header.cursor &&
+        this.subscriptions.get(id)
+      ) {
         this.subscriptions.get(id)!.cursor = item.header.cursor;
       }
 
-      if (header.kind === 'Start') {
+      if (header.kind === "Start") {
         continue;
       } else if (
-        ['Continue', 'ContinueWithError'].includes(header.kind as string)
+        ["Continue", "ContinueWithError"].includes(header.kind as string)
       ) {
         yield body;
-      } else if (header.kind === 'Error') {
+      } else if (header.kind === "Error") {
         throw new Error(body.toString());
-      } else if (header.kind === 'End') {
+      } else if (header.kind === "End") {
         break;
       } else {
         throw new Error(
@@ -160,15 +164,18 @@ export class Client {
   }
 
   async ensureConnection() {
-    while (this.connection && this.connection.readyState === WebSocket.CONNECTING) {
-      await new Promise(resolve => setTimeout(resolve, 100));
+    while (
+      this.connection &&
+      this.connection.readyState === WebSocket.CONNECTING
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     if (this.connection && this.connection.readyState === WebSocket.OPEN) {
       return;
     }
 
-    console.log('Connection lost. Attempting to reconnect...');
+    console.log("Connection lost. Attempting to reconnect...");
     try {
       await this.connect();
     } catch (error) {
@@ -186,13 +193,24 @@ export class Client {
         await this.connect();
         // Resubscribe after successful connection
         for (const [id, subscription] of this.subscriptions.entries()) {
-          await this.send_request(subscription.request.operation, subscription.request, { deltas: subscription.request.deltas, format: subscription.request.format });
+          await this.send_request(
+            subscription.request.operation,
+            subscription.request,
+            {
+              deltas: subscription.request.deltas,
+              format: subscription.request.format,
+            }
+          );
         }
         backoffSeconds = 1; // Reset backoff on successful reconnection
         return;
       } catch (error) {
-        console.error(`Reconnection failed: ${error}. Retrying in ${backoffSeconds} seconds...`);
-        await new Promise(resolve => setTimeout(resolve, backoffSeconds * 1000));
+        console.error(
+          `Reconnection failed: ${error}. Retrying in ${backoffSeconds} seconds...`
+        );
+        await new Promise((resolve) =>
+          setTimeout(resolve, backoffSeconds * 1000)
+        );
         backoffSeconds = Math.min(backoffSeconds * 2, MAX_BACKOFF_SECONDS);
       }
     }
@@ -208,139 +226,240 @@ export class Client {
       const onOpen = () => {
         clearTimeout(timeoutId);
         resolve();
-        this.connection?.removeEventListener('open', onOpen);
+        this.connection?.removeEventListener("open", onOpen);
       };
 
       const onError = (error: any) => {
-        console.log('WebSocket connection error:', error);
+        console.log("WebSocket connection error:", error);
         clearTimeout(timeoutId);
         reject(error);
-        this.connection?.removeEventListener('error', onError);
+        this.connection?.removeEventListener("error", onError);
       };
 
       const timeoutId = setTimeout(() => {
-        reject(new Error('WebSocket connection timed out'));
-        this.connection?.removeEventListener('open', onOpen);
-        this.connection?.removeEventListener('error', onError);
+        reject(new Error("WebSocket connection timed out"));
+        this.connection?.removeEventListener("open", onOpen);
+        this.connection?.removeEventListener("error", onError);
       }, timeout);
 
-      this.connection?.addEventListener('open', onOpen);
-      this.connection?.addEventListener('error', onError);
+      this.connection?.addEventListener("open", onOpen);
+      this.connection?.addEventListener("error", onError);
     });
   }
 
-  async get_status(format = 'json_stream') {
-    return await this.send_request('getStatus', { format });
+  async get_status(format = "json_stream") {
+    return await this.send_request("getStatus", { format });
   }
 
-  async get_blocks(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getBlocks', params, { deltas, format });
+  async get_blocks(params: Object, deltas = false, format = "json_stream") {
+    return await this.send_request("getBlocks", params, { deltas, format });
   }
 
-  async get_logs(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getLogs', params, { deltas, format });
+  async get_logs(params: Object, deltas = false, format = "json_stream") {
+    return await this.send_request("getLogs", params, { deltas, format });
   }
 
-  async get_transactions(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getTxs', params, { deltas, format });
-  }
-
-  async get_receipts(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getReceipts', params, { deltas, format });
-  }
-
-  async get_contracts(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getContracts', params, { deltas, format });
-  }
-
-  async get_uniswap_v2_pairs(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getUniswapV2Pairs', params, {
+  async get_logs_decoded(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getDecodedLogs", params, {
       deltas,
       format,
     });
   }
 
-  async get_uniswap_v2_prices(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getUniswapV2Prices', params, {
+  async get_transactions(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getTxs", params, { deltas, format });
+  }
+
+  async get_receipts(params: Object, deltas = false, format = "json_stream") {
+    return await this.send_request("getReceipts", params, { deltas, format });
+  }
+
+  async get_contracts(params: Object, deltas = false, format = "json_stream") {
+    return await this.send_request("getContracts", params, { deltas, format });
+  }
+
+  async get_uniswap_v2_pairs(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getUniswapV2Pairs", params, {
       deltas,
       format,
     });
   }
 
-  async get_uniswap_v3_pools(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getUniswapV3Pools', params, {
+  async get_uniswap_v2_prices(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getUniswapV2Prices", params, {
       deltas,
       format,
     });
   }
 
-  async get_uniswap_v3_fees(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getUniswapV3Fees', params, {
+  async get_uniswap_v3_pools(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getUniswapV3Pools", params, {
       deltas,
       format,
     });
   }
 
-  async get_uniswap_v3_positions(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getUniswapV3Positions', params, {
+  async get_uniswap_v3_fees(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getUniswapV3Fees", params, {
       deltas,
       format,
     });
   }
 
-  async get_uniswap_v3_prices(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getUniswapV3Prices', params, {
+  async get_uniswap_v3_positions(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getUniswapV3Positions", params, {
       deltas,
       format,
     });
   }
 
-  async get_curve_tokens(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getCurveTokens', params, {
+  async get_uniswap_v3_prices(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getUniswapV3Prices", params, {
       deltas,
       format,
     });
   }
 
-  async get_curve_pools(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getCurvePools', params, { deltas, format });
-  }
-
-  async get_curve_prices(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getCurvePrices', params, {
+  async get_curve_tokens(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getCurveTokens", params, {
       deltas,
       format,
     });
   }
 
-  async get_transfers(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getTransfers', params, { deltas, format });
+  async get_curve_pools(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getCurvePools", params, { deltas, format });
   }
 
-  async get_erc20_tokens(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getErc20', params, { deltas, format });
-  }
-
-  async get_erc20_approvals(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getErc20Approvals', params, {
+  async get_curve_prices(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getCurvePrices", params, {
       deltas,
       format,
     });
   }
 
-  async get_erc20_transfers(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getErc20Transfers', params, {
+  async get_transfers(params: Object, deltas = false, format = "json_stream") {
+    return await this.send_request("getTransfers", params, { deltas, format });
+  }
+
+  async get_erc20_tokens(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getErc20", params, { deltas, format });
+  }
+
+  async get_erc20_approvals(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getErc20Approvals", params, {
       deltas,
       format,
     });
   }
 
-  async get_fuel_spark_orders(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getSparkOrder', params, { deltas, format });
+  async get_erc20_transfers(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getErc20Transfers", params, {
+      deltas,
+      format,
+    });
   }
 
-  async get_fuel_unspent_utxos(params: Object, deltas = false, format = 'json_stream') {
-    return await this.send_request('getUnspentUtxos', params, { deltas, format });
+  async get_fuel_spark_markets(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getSparkMarket", params, {
+      deltas,
+      format,
+    });
+  }
+
+  async get_fuel_spark_orders(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getSparkOrder", params, { deltas, format });
+  }
+
+  async get_fuel_unspent_utxos(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getUnspentUtxos", params, {
+      deltas,
+      format,
+    });
+  }
+
+  async get_fuel_src20_metadata(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getSrc20", params, { deltas, format });
+  }
+
+  async get_fuel_src7_metadata(
+    params: Object,
+    deltas = false,
+    format = "json_stream"
+  ) {
+    return await this.send_request("getSrc7", params, { deltas, format });
   }
 }
 

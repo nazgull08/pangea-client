@@ -31,8 +31,8 @@ use crate::{
         erc20::{GetErc20ApprovalsRequest, GetErc20Request, GetErc20TransferssRequest},
         fuel::{
             GetFuelBlocksRequest, GetFuelLogsRequest, GetFuelMessagesRequest,
-            GetFuelReceiptsRequest, GetFuelTxsRequest, GetSparkOrderRequest, GetSrc20,
-            GetUtxoRequest,
+            GetFuelReceiptsRequest, GetFuelTxsRequest, GetSparkMarketRequest, GetSparkOrderRequest,
+            GetSrc20, GetSrc7, GetUtxoRequest,
         },
         logs::GetLogsRequest,
         transfers::GetTransfersRequest,
@@ -339,6 +339,20 @@ impl FuelProvider for WsProvider {
             .await
     }
 
+    async fn get_fuel_logs_decoded_by_format(
+        &self,
+        request: GetFuelLogsRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        self.request(
+            Operation::GetFuelLogsDecoded { params: request },
+            format,
+            deltas,
+        )
+        .await
+    }
+
     async fn get_fuel_txs_by_format(
         &self,
         request: GetFuelTxsRequest,
@@ -387,6 +401,20 @@ impl FuelProvider for WsProvider {
         .await
     }
 
+    async fn get_fuel_spark_markets_by_format(
+        &self,
+        request: GetSparkMarketRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        self.request(
+            Operation::GetSparkMarket { params: request },
+            format,
+            deltas,
+        )
+        .await
+    }
+
     async fn get_fuel_spark_orders_by_format(
         &self,
         request: GetSparkOrderRequest,
@@ -404,6 +432,16 @@ impl FuelProvider for WsProvider {
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
         self.request(Operation::GetSrc20 { params: request }, format, deltas)
+            .await
+    }
+
+    async fn get_fuel_src7_by_format(
+        &self,
+        request: GetSrc7,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        self.request(Operation::GetSrc7 { params: request }, format, deltas)
             .await
     }
 }
@@ -679,6 +717,11 @@ enum Operation {
         #[serde(flatten)]
         params: GetLogsRequest,
     },
+    #[serde(rename = "getDecodedLogs")]
+    GetFuelLogsDecoded {
+        #[serde(flatten)]
+        params: GetFuelLogsRequest,
+    },
     GetTxs {
         #[serde(flatten)]
         params: GetTxsRequest,
@@ -767,6 +810,10 @@ enum Operation {
         #[serde(flatten)]
         params: requests::erc20::GetErc20TransferssRequest,
     },
+    GetSparkMarket {
+        #[serde(flatten)]
+        params: requests::fuel::GetSparkMarketRequest,
+    },
     GetSparkOrder {
         #[serde(flatten)]
         params: requests::fuel::GetSparkOrderRequest,
@@ -774,6 +821,10 @@ enum Operation {
     GetSrc20 {
         #[serde(flatten)]
         params: requests::fuel::GetSrc20,
+    },
+    GetSrc7 {
+        #[serde(flatten)]
+        params: requests::fuel::GetSrc7,
     },
 }
 
