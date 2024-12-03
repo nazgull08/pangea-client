@@ -101,7 +101,7 @@ impl Serialize for ChainId {
 
 struct ChainIdVisitor;
 
-impl<'de> Visitor<'de> for ChainIdVisitor {
+impl Visitor<'_> for ChainIdVisitor {
     type Value = ChainId;
 
     fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {

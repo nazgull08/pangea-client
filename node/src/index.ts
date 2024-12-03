@@ -1,470 +1,317 @@
-import { v4 as uuidv4, NIL as uuidNil } from "uuid";
+import crypto from "crypto";
 import { Buffer } from "buffer";
-import { WebSocket, RawData } from "ws";
+import { WebSocket } from "ws";
 
 export interface ClientOptions {
   endpoint?: string;
   username?: string;
   password?: string;
   isSecure?: boolean;
+  timeout?: number;
 }
 
 function applyDefaults(options: ClientOptions): ClientOptions {
   return {
     username: options.username,
     password: options.password,
-    endpoint: options.endpoint || "app.pangea.foundation",
+    endpoint: options.endpoint || DEFAULT_ENDPOINT,
     isSecure: options.isSecure === undefined ? true : options.isSecure,
+    timeout: options.timeout || 5000,
   };
 }
 
+const UUID_NIL = "00000000-0000-0000-0000-000000000000";
+const DEFAULT_ENDPOINT = "app.pangea.foundation";
+const PING_INTERVAL = 5_000;
+
+const methodsToEndpointsWithoutParams = [["get_status", "getStatus"]] as const;
+
+const methodsToEndpointsWithParams = [
+  ["get_blocks", "getBlocks"],
+  ["get_logs", "getLogs"],
+  ["get_logs_decoded", "getDecodedLogs"],
+  ["get_transactions", "getTxs"],
+  ["get_receipts", "getReceipts"],
+  ["get_contracts", "getContracts"],
+  ["get_uniswap_v2_pairs", "getUniswapV2Pairs"],
+  ["get_uniswap_v2_prices", "getUniswapV2Prices"],
+  ["get_uniswap_v3_pools", "getUniswapV3Pools"],
+  ["get_uniswap_v3_fees", "getUniswapV3Fees"],
+  ["get_uniswap_v3_positions", "getUniswapV3Positions"],
+  ["get_uniswap_v3_prices", "getUniswapV3Prices"],
+  ["get_curve_tokens", "getCurveTokens"],
+  ["get_curve_pools", "getCurvePools"],
+  ["get_curve_prices", "getCurvePrices"],
+  ["get_transfers", "getTransfers"],
+  ["get_erc20_tokens", "getErc20"],
+  ["get_erc20_approvals", "getErc20Approvals"],
+  ["get_erc20_transfers", "getErc20Transfers"],
+  ["get_fuel_spark_markets", "getSparkMarket"],
+  ["get_fuel_spark_orders", "getSparkOrder"],
+  ["get_fuel_unspent_utxos", "getUnspentUtxos"],
+  ["get_fuel_src20_metadata", "getSrc20"],
+  ["get_fuel_src7_metadata", "getSrc7"],
+] as const;
+
+type MethodWithParams = (typeof methodsToEndpointsWithParams)[number][0];
+type MethodWithoutParams = (typeof methodsToEndpointsWithoutParams)[number][0];
+
+type ClientMethodsWithoutParams = {
+  [K in MethodWithoutParams]: (format: RequestFormats) => Promise<any>;
+};
+type ClientMethodsWithParams = {
+  [K in MethodWithParams]: (
+    params: {},
+    format?: RequestFormats,
+    deltas?: boolean,
+  ) => Promise<any>;
+};
+
+type Header = {
+  id: string;
+  kind: string;
+  cursor?: string;
+};
+
+export enum RequestFormats {
+  ARROW = "arrow",
+  ARROW_STREAM = "arrow_stream",
+  JSON = "json",
+  JSON_STREAM = "json_stream", // default
+}
+
+export type ClientWithEndpoints = Client & ClientMethodsWithoutParams & ClientMethodsWithParams;
+
 export class Client {
-  endpoint: string;
-  connection: WebSocket;
-  subscriptions: Map<string, { request: any; cursor: string | null }>;
+  public readonly endpoint: string;
+  public readonly subscriptions: Map<string, { request: any; cursor: string | null }>;
+  private _connection: WebSocket;
+  private _timeout: number;
+  private _data_queues: Map<string, { header: Header; body: Buffer }[]>;
 
-  constructor(options: ClientOptions) {
-    options = applyDefaults(options);
+  public get connection(): WebSocket {
+    return this._connection;
+  }
 
-    let endpoint = options.endpoint;
-    if (options.username && options.password) {
-      endpoint = `${options.username}:${options.password}@${endpoint}`;
+  static async build(options?: ClientOptions): Promise<ClientWithEndpoints> {
+    options = applyDefaults(options ?? {});
+
+    const client = new Client(options);
+
+    // wait for connection to establish
+    while (client.connection.readyState === WebSocket.CONNECTING) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
-    this.endpoint = options.isSecure
-      ? `wss://${endpoint}/v1/websocket`
-      : `ws://${endpoint}/v1/websocket`;
+
+    if (client.connection.readyState !== WebSocket.OPEN) {
+      throw new Error("Failed to create client");
+    }
+
+    // bind the methods dynamically with their specific endpoints
+
+    for (const [method, endpoint] of methodsToEndpointsWithoutParams) {
+      (client as any)[method] = async (format = RequestFormats.JSON_STREAM) =>
+        client.send_request(endpoint, {}, format, false);
+    }
+
+    for (const [method, endpoint] of methodsToEndpointsWithParams) {
+      (client as any)[method] = async (
+        params: {},
+        format = RequestFormats.JSON_STREAM,
+        deltas = false,
+      ) => client.send_request(endpoint, params, format, deltas);
+    }
+
+    return client as unknown as ClientWithEndpoints;
+  }
+
+  private constructor(options: ClientOptions) {
+    const username = options.username || process.env.PANGEA_USERNAME;
+    if (!username) {
+      throw new Error("Missing PANGEA_USERNAME in environment variables");
+    }
+
+    const password = options.password || process.env.PANGEA_PASSWORD;
+    if (!password) {
+      throw new Error("Missing PANGEA_PASSWORD in environment variables");
+    }
+
+    const endpoint = options.endpoint || process.env.PANGEA_URL;
+    const protocol = `ws${options.isSecure ? "s" : ""}`;
+    this.endpoint = `${protocol}://${username}:${password}@${endpoint}/v1/websocket`;
+
+    // console.log("");
+    // console.log(`Username: \x1b[1m${username}\x1b[0m`);
+    // console.log(`URL: \x1b[1m${endpoint}\x1b[0m`);
+    // console.log("");
 
     this.subscriptions = new Map();
-    this.connection = new WebSocket(this.endpoint);
-    this.connect();
+    this._data_queues = new Map();
+
+    this._timeout = options.timeout!;
+    this._connection = this.createConnection();
+  }
+
+  private createConnection() {
+    const connection = new WebSocket(this.endpoint);
+
+    let alive = true;
+
+    const onOpen = () => {
+      connection.removeEventListener("open", onOpen);
+
+      clearTimeout(timeoutId);
+
+      const pingingLoop = setInterval(() => {
+        if (connection.readyState !== WebSocket.OPEN) {
+          clearInterval(pingingLoop);
+
+          return;
+        }
+
+        if (alive) {
+          alive = false;
+          connection.ping();
+
+          return;
+        }
+
+        // no pong received in time, closing connection
+        console.error("Connection lost...");
+
+        clearInterval(pingingLoop);
+        connection.close();
+      }, PING_INTERVAL);
+
+      connection.on("pong", () => {
+        alive = true;
+      });
+
+      connection.on("close", () => {
+        clearInterval(pingingLoop);
+      });
+    };
+
+    const onError = (error: any) => {
+      console.error("WebSocket connection encountered an error:", error);
+
+      clearTimeout(timeoutId);
+
+      connection.removeEventListener("error", onError);
+    };
+
+    const timeoutId = setTimeout(() => {
+      console.error("WebSocket connection timed out");
+
+      connection.removeEventListener("open", onOpen);
+      connection.removeEventListener("error", onError);
+
+      connection.terminate();
+    }, this._timeout);
+
+    // store responses from server into their dedicated message queues
+    const onMessage = (raw_data: Buffer) => {
+      alive = true;
+
+      if (!raw_data) return;
+
+      const newlineIndex = raw_data.indexOf("\n");
+      if (newlineIndex === -1) return;
+
+      const headerJSON = raw_data.subarray(0, newlineIndex).toString();
+      const body = raw_data.subarray(newlineIndex + 1); // preserving the body as bytes
+
+      const header = JSON.parse(headerJSON);
+
+      if (header.id === UUID_NIL && header.kind === "Error") {
+        throw new Error(body.toString());
+      }
+
+      this._data_queues.get(header.id)!.push({ header, body });
+    };
+
+    connection.addEventListener("open", onOpen);
+    connection.addEventListener("error", onError);
+    connection.on("message", onMessage);
+
+    return connection;
   }
 
   async connect() {
-    try {
-      if (!this.connection || this.connection.readyState === WebSocket.CLOSED) {
-        this.connection = new WebSocket(this.endpoint);
-      }
+    this.disconnect();
 
-      await this.waitForConnection();
-    } catch (error) {
-      console.error("WebSocket connection error:", error);
-      throw error;
+    while (this._connection.readyState !== WebSocket.CLOSED) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
+
+    this._connection = this.createConnection();
   }
 
   async disconnect() {
-    if (this.connection) {
-      this.connection?.close();
-    }
+    this._connection.close();
+
+    this._data_queues.clear();
+    this.subscriptions.clear();
   }
 
-  async send_request(operation: string, params = {}, options = {}) {
-    await this.ensureConnection(); // Ensure connection before sending
-    const id = uuidv4();
+  async send_request(operation: string, params: {}, format: RequestFormats, deltas: boolean) {
+    if (this._connection.readyState !== WebSocket.OPEN) {
+      throw new Error("WebSocket connection lost");
+    }
+
+    const id = crypto.randomUUID();
 
     const request = {
       id,
       cursor: null as string | null | undefined,
       operation,
-      ...options,
       ...params,
+      format,
+      deltas,
     };
 
-    // Add cursor if present
-    if (this.subscriptions.has(id)) {
-      request.cursor = this.subscriptions.get(id)?.cursor;
-    } else {
-      this.subscriptions.set(id, { request, cursor: null }); // Initialize subscription state with null cursor
-    }
+    this._data_queues.set(id, []);
+    this.subscriptions.set(id, { request, cursor: null });
 
-    this.connection?.send(JSON.stringify(request));
+    this._connection.send(JSON.stringify(request));
+
     return this.handle_request(id);
   }
 
   async *handle_request(id: string) {
-    const queue: { header: Header; body: Buffer }[] = [];
+    const queue = this._data_queues.get(id);
 
-    // Register a message event listener
-    this.connection?.on("message", async (raw_data: RawData) => {
-      if (!raw_data) {
-        return;
+    if (!queue) return;
+
+    while (this._connection.readyState === WebSocket.OPEN) {
+      while (queue.length === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
       }
 
-      let data: Buffer = Buffer.from([]);
-      if (raw_data instanceof ArrayBuffer) {
-        data = Buffer.from(raw_data);
-      } else if (raw_data instanceof Buffer) {
-        data = raw_data;
-      } else if (typeof raw_data === "string") {
-        data = Buffer.from(raw_data);
-      } else if (Array.isArray(raw_data)) {
-        data = Buffer.concat(raw_data);
-      } else if (data instanceof Blob) {
-        let buffer = await data.arrayBuffer();
-        data = Buffer.from(buffer);
-      }
-
-      const newlineIndex = data.indexOf("\n");
-      if (newlineIndex === -1) {
-        return;
-      }
-
-      const headerJSON = data.subarray(0, newlineIndex).toString();
-      const body = data.subarray(newlineIndex + 1); // Preserving the body as bytes
-
-      const header = JSON.parse(headerJSON);
-
-      if (header.id === uuidNil && header.kind === "Error") {
-        throw new Error(body.toString());
-      }
-
-      if (header.id !== id) return;
-
-      queue.push({ header, body });
-    });
-
-    while (true) {
-      if (queue.length === 0) {
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        continue;
-      }
-
-      const item = queue.shift();
-      if (!item) {
-        continue;
-      }
+      const item = queue.shift()!;
+      if (!item) break;
 
       const { header, body } = item;
 
-      if (
-        header?.kind &&
-        header.kind.startsWith("Continue") &&
-        item.header.cursor &&
-        this.subscriptions.get(id)
-      ) {
-        this.subscriptions.get(id)!.cursor = item.header.cursor;
-      }
+      if (header.kind && header.kind.startsWith("Continue")) {
+        const subscription = this.subscriptions.get(id);
+        if (subscription && header.cursor) {
+          subscription.cursor = header.cursor;
+        }
 
-      if (header.kind === "Start") {
-        continue;
-      } else if (
-        ["Continue", "ContinueWithError"].includes(header.kind as string)
-      ) {
         yield body;
-      } else if (header.kind === "Error") {
-        throw new Error(body.toString());
+      } else if (header.kind === "Start") {
+        continue;
       } else if (header.kind === "End") {
         break;
+      } else if (header.kind === "Error") {
+        throw new Error(body.toString());
       } else {
-        throw new Error(
-          `Unexpected kind of response from server: ${header.kind}`
-        );
+        throw new Error(`Unexpected kind of response from server: ${header.kind}`);
       }
     }
+
+    this._data_queues.delete(id);
+    this.subscriptions.delete(id);
   }
-
-  async ensureConnection() {
-    while (
-      this.connection &&
-      this.connection.readyState === WebSocket.CONNECTING
-    ) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-
-    if (this.connection && this.connection.readyState === WebSocket.OPEN) {
-      return;
-    }
-
-    console.log("Connection lost. Attempting to reconnect...");
-    try {
-      await this.connect();
-    } catch (error) {
-      // Trigger reconnection attempt
-      await this.reconnect_with_backoff();
-    }
-  }
-
-  async reconnect_with_backoff() {
-    let backoffSeconds = 1;
-    const MAX_BACKOFF_SECONDS = 60;
-
-    while (true) {
-      try {
-        await this.connect();
-        // Resubscribe after successful connection
-        for (const [id, subscription] of this.subscriptions.entries()) {
-          await this.send_request(
-            subscription.request.operation,
-            subscription.request,
-            {
-              deltas: subscription.request.deltas,
-              format: subscription.request.format,
-            }
-          );
-        }
-        backoffSeconds = 1; // Reset backoff on successful reconnection
-        return;
-      } catch (error) {
-        console.error(
-          `Reconnection failed: ${error}. Retrying in ${backoffSeconds} seconds...`
-        );
-        await new Promise((resolve) =>
-          setTimeout(resolve, backoffSeconds * 1000)
-        );
-        backoffSeconds = Math.min(backoffSeconds * 2, MAX_BACKOFF_SECONDS);
-      }
-    }
-  }
-
-  async waitForConnection(timeout: number = 5000) {
-    return new Promise<void>((resolve, reject) => {
-      if (this.connection?.readyState === WebSocket.OPEN) {
-        resolve();
-        return;
-      }
-
-      const onOpen = () => {
-        clearTimeout(timeoutId);
-        resolve();
-        this.connection?.removeEventListener("open", onOpen);
-      };
-
-      const onError = (error: any) => {
-        console.log("WebSocket connection error:", error);
-        clearTimeout(timeoutId);
-        reject(error);
-        this.connection?.removeEventListener("error", onError);
-      };
-
-      const timeoutId = setTimeout(() => {
-        reject(new Error("WebSocket connection timed out"));
-        this.connection?.removeEventListener("open", onOpen);
-        this.connection?.removeEventListener("error", onError);
-      }, timeout);
-
-      this.connection?.addEventListener("open", onOpen);
-      this.connection?.addEventListener("error", onError);
-    });
-  }
-
-  async get_status(format = "json_stream") {
-    return await this.send_request("getStatus", { format });
-  }
-
-  async get_blocks(params: Object, deltas = false, format = "json_stream") {
-    return await this.send_request("getBlocks", params, { deltas, format });
-  }
-
-  async get_logs(params: Object, deltas = false, format = "json_stream") {
-    return await this.send_request("getLogs", params, { deltas, format });
-  }
-
-  async get_logs_decoded(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getDecodedLogs", params, {
-      deltas,
-      format,
-    });
-  }
-
-  async get_transactions(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getTxs", params, { deltas, format });
-  }
-
-  async get_receipts(params: Object, deltas = false, format = "json_stream") {
-    return await this.send_request("getReceipts", params, { deltas, format });
-  }
-
-  async get_contracts(params: Object, deltas = false, format = "json_stream") {
-    return await this.send_request("getContracts", params, { deltas, format });
-  }
-
-  async get_uniswap_v2_pairs(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getUniswapV2Pairs", params, {
-      deltas,
-      format,
-    });
-  }
-
-  async get_uniswap_v2_prices(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getUniswapV2Prices", params, {
-      deltas,
-      format,
-    });
-  }
-
-  async get_uniswap_v3_pools(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getUniswapV3Pools", params, {
-      deltas,
-      format,
-    });
-  }
-
-  async get_uniswap_v3_fees(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getUniswapV3Fees", params, {
-      deltas,
-      format,
-    });
-  }
-
-  async get_uniswap_v3_positions(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getUniswapV3Positions", params, {
-      deltas,
-      format,
-    });
-  }
-
-  async get_uniswap_v3_prices(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getUniswapV3Prices", params, {
-      deltas,
-      format,
-    });
-  }
-
-  async get_curve_tokens(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getCurveTokens", params, {
-      deltas,
-      format,
-    });
-  }
-
-  async get_curve_pools(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getCurvePools", params, { deltas, format });
-  }
-
-  async get_curve_prices(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getCurvePrices", params, {
-      deltas,
-      format,
-    });
-  }
-
-  async get_transfers(params: Object, deltas = false, format = "json_stream") {
-    return await this.send_request("getTransfers", params, { deltas, format });
-  }
-
-  async get_erc20_tokens(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getErc20", params, { deltas, format });
-  }
-
-  async get_erc20_approvals(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getErc20Approvals", params, {
-      deltas,
-      format,
-    });
-  }
-
-  async get_erc20_transfers(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getErc20Transfers", params, {
-      deltas,
-      format,
-    });
-  }
-
-  async get_fuel_spark_markets(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getSparkMarket", params, {
-      deltas,
-      format,
-    });
-  }
-
-  async get_fuel_spark_orders(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getSparkOrder", params, { deltas, format });
-  }
-
-  async get_fuel_unspent_utxos(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getUnspentUtxos", params, {
-      deltas,
-      format,
-    });
-  }
-
-  async get_fuel_src20_metadata(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getSrc20", params, { deltas, format });
-  }
-
-  async get_fuel_src7_metadata(
-    params: Object,
-    deltas = false,
-    format = "json_stream"
-  ) {
-    return await this.send_request("getSrc7", params, { deltas, format });
-  }
-}
-
-interface Header {
-  id: string;
-  kind: string;
-  cursor?: string;
 }

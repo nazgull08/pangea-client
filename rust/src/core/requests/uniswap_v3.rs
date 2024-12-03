@@ -1,5 +1,5 @@
-use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 use ethers_core::types::Address;
 
@@ -8,6 +8,97 @@ use crate::{
     query::Bound,
     utils::serialize_comma_separated,
 };
+#[derive(Clone, Deserialize, Serialize, Debug)]
+#[allow(non_snake_case)]
+pub struct GetFeesRequest {
+    #[serde(default = "default_chains")]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub chains: HashSet<ChainId>,
+
+    // Inclusive lower bound if is Some for block number
+    #[serde(default)]
+    pub from_block: Bound,
+    // Exclusive upper bound if is Some for block number
+    #[serde(default)]
+    pub to_block: Bound,
+
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub pool_address__in: HashSet<Address>,
+
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub sender__in: HashSet<Address>,
+
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub recipient__in: HashSet<Address>,
+
+    #[serde(default)]
+    pub amount0__gte: Option<f64>,
+
+    #[serde(default)]
+    pub amount0__lte: Option<f64>,
+
+    #[serde(default)]
+    pub amount1__gte: Option<f64>,
+
+    #[serde(default)]
+    pub amount1__lte: Option<f64>,
+
+    #[serde(default)]
+    pub tick_lower__gte: Option<i32>,
+
+    #[serde(default)]
+    pub tick_lower__lte: Option<i32>,
+
+    #[serde(default)]
+    pub tick_upper__gte: Option<i32>,
+
+    #[serde(default)]
+    pub tick_upper__lte: Option<i32>,
+
+    #[serde(default)]
+    pub tick__gte: Option<i32>,
+
+    #[serde(default)]
+    pub tick__lte: Option<i32>,
+}
+
+impl Default for GetFeesRequest {
+    fn default() -> Self {
+        Self {
+            chains: default_chains(),
+            from_block: Bound::default(),
+            to_block: Bound::default(),
+            pool_address__in: HashSet::new(),
+            sender__in: HashSet::new(),
+            recipient__in: HashSet::new(),
+            amount0__gte: None,
+            amount0__lte: None,
+            amount1__gte: None,
+            amount1__lte: None,
+            tick_lower__gte: None,
+            tick_lower__lte: None,
+            tick_upper__gte: None,
+            tick_upper__lte: None,
+            tick__gte: None,
+            tick__lte: None,
+        }
+    }
+}
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 #[allow(non_snake_case)]
@@ -101,6 +192,97 @@ impl Default for GetPoolsRequest {
             price__lte: None,
             tick_spacing__gte: None,
             tick_spacing__lte: None,
+        }
+    }
+}
+#[derive(Clone, Deserialize, Serialize, Debug)]
+#[allow(non_snake_case)]
+pub struct GetPositionsRequest {
+    #[serde(default = "default_chains")]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub chains: HashSet<ChainId>,
+
+    // Inclusive lower bound if is Some for block number
+    #[serde(default)]
+    pub from_block: Bound,
+    // Exclusive upper bound if is Some for block number
+    #[serde(default)]
+    pub to_block: Bound,
+
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub pool_address__in: HashSet<Address>,
+
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub sender__in: HashSet<Address>,
+
+    #[serde(default)]
+    #[serde(
+        serialize_with = "serialize_comma_separated",
+        skip_serializing_if = "HashSet::is_empty"
+    )]
+    pub recipient__in: HashSet<Address>,
+
+    #[serde(default)]
+    pub amount0__gte: Option<f64>,
+
+    #[serde(default)]
+    pub amount0__lte: Option<f64>,
+
+    #[serde(default)]
+    pub amount1__gte: Option<f64>,
+
+    #[serde(default)]
+    pub amount1__lte: Option<f64>,
+
+    #[serde(default)]
+    pub tick_lower__gte: Option<i32>,
+
+    #[serde(default)]
+    pub tick_lower__lte: Option<i32>,
+
+    #[serde(default)]
+    pub tick_upper__gte: Option<i32>,
+
+    #[serde(default)]
+    pub tick_upper__lte: Option<i32>,
+
+    #[serde(default)]
+    pub tick__gte: Option<i32>,
+
+    #[serde(default)]
+    pub tick__lte: Option<i32>,
+}
+
+impl Default for GetPositionsRequest {
+    fn default() -> Self {
+        Self {
+            chains: default_chains(),
+            from_block: Bound::default(),
+            to_block: Bound::default(),
+            pool_address__in: HashSet::new(),
+            sender__in: HashSet::new(),
+            recipient__in: HashSet::new(),
+            amount0__gte: None,
+            amount0__lte: None,
+            amount1__gte: None,
+            amount1__lte: None,
+            tick_lower__gte: None,
+            tick_lower__lte: None,
+            tick_upper__gte: None,
+            tick_upper__lte: None,
+            tick__gte: None,
+            tick__lte: None,
         }
     }
 }

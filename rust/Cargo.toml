@@ -1,6 +1,16 @@
+# see more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [package]
+exclude = [
+    "Cargo.toml.orig",
+    ".vscode/**",
+    "examples/**",
+    "pack-crate/**",
+    "tests/**",
+] # when publishing
+
 name = "pangea-client"
-version = "0.2.6"
+version = "0.3.0"
 edition = "2021"
 description = "Client SDK for Pangea The Open Index Protocol"
 keywords = ["sdk", "blockchain", "indexing", "uniswap"]
@@ -12,36 +22,39 @@ repository = "https://github.com/PangeaFoundation/pangea-client"
 documentation = "https://docs.pangea.foundation/introduction.html"
 
 [dependencies]
+async-trait = "0.1.77"
+base64 = "0.22.0"
 csv-async = "1.2.6"
-thiserror = "1.0.57"
+ethers-core = "2.0.14"
+futures = "0.3.30"
+http = "1.0.0"
+lazy_static = "1.4.0"
+num-derive = "0.4.2"
+num-traits = "0.2.18"
+regex = "1.10.3"
 reqwest = { version = "0.11.24", features = ["stream"] }
 serde = { version = "1.0.196", features = ["derive"] }
 serde_json = "1.0.113"
-tungstenite = "0.21.0"
-url = "2.5.0"
-ethers-core = "2.0.14"
-bitflags = "2.4.2"
-futures = "0.3.30"
+strum = { version = "0.26.1", features = ["derive"] }
+strum_macros = "0.26.1"
+thiserror = "1.0.57"
 tokio = { version = "1.36.0", features = ["macros", "sync"] }
 tokio-tungstenite = { version = "0.21.0", features = ["native-tls"] }
-http = "1.0.0"
-async-trait = "0.1.77"
-base64 = "0.22.0"
 tracing = "0.1.40"
+tungstenite = "0.21.0"
+url = "2.5.0"
 uuid = { version = "1.7.0", features = ["v4", "serde"] }
-strum = { version = "0.26.1", features = ["derive"] }
-regex = "1.10.3"
-num-derive = "0.4.2"
-num-traits = "0.2.18"
-strum_macros = "0.26.1"
-lazy_static = "1.4.0"
-tiny-keccak = { version = "2.0", features = ["sha3"] }
+arrow = { version = "53.3.0", features = ["prettyprint"] }
 
 [dev-dependencies]
-tokio = { version = "1.36.0", features = ["rt-multi-thread"] }
-dotenv = "0.15.0"
+assert-json-diff = "2.0.2"
+dotenvy = "0.15.7"
 env_logger = "0.11.2"
+tokio = { version = "1.36.0", features = ["rt-multi-thread"] }
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg=docsrs"]
+
+[workspace]
+members = ["pack-crate"]

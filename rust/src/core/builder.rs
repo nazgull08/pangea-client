@@ -46,8 +46,8 @@ pub struct ClientBuilder {
 /// use pangea_client::HttpProvider;
 ///
 /// let client = ClientBuilder::default()
-///    .endpoint("app.pangea.foundation")
-///    .credential("username", "password")
+///    .endpoint("app.pangea.foundation") // optional; can be specified via .env file
+///    .credential("username", "password") // optional; can be specified via .env file
 ///   .build::<HttpProvider>();
 /// ```
 impl ClientBuilder {

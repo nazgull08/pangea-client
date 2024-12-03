@@ -1,6 +1,23 @@
 {
+  "module": {
+    "type": "commonjs"
+  },
+  "sourceMaps": false,
+  "exclude": [
+    ".*.js$"
+  ],
+  "minify": true,
   "jsc": {
-    "target": "es2020",
+    "target": "es2022",
+    //
+    // https://swc.rs/docs/configuration/minification
+    //
+    "minify": {
+      "compress": {
+        "unused": true
+      },
+      "mangle": true
+    },
     "parser": {
       "syntax": "typescript",
       "decorators": true,
@@ -13,17 +30,5 @@
     "keepClassNames": true,
     "externalHelpers": true,
     "loose": true
-  },
-  "module": {
-    "type": "commonjs"
-  },
-  "sourceMaps": true,
-  "exclude": [
-    "jest.config.ts",
-    ".*\\.spec.tsx?$",
-    ".*\\.test.tsx?$",
-    "./src/jest-setup.ts$",
-    "./**/jest-setup.ts$",
-    ".*.js$"
-  ]
+  }
 }

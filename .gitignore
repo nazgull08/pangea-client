@@ -5,8 +5,15 @@ dist
 tmp
 /out-tsc
 
+# NodeJS client -- build output
+pangea-client-node/src/target
+
 # dependencies
 node_modules
+
+# packing
+pangea-client-[0-9.\-]*.tgz
+pangea-client-[0-9.\-]*.tar.gz
 
 # IDEs and editors
 /.idea

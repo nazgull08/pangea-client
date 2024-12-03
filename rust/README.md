@@ -1,64 +1,59 @@
-# Rust pangea-client
+# Pangea Client
 
-## Credentials
+`pangea-client` is a set of libraries for different languages to interface with Pangea for access to cross chain data, fast.
 
-You will be given a username and password to use to access the Pangea API. The easiest way to use these credentials is to create a .env file in the same folder as this README.md file like so:
+When using `rust` the data is delivered in Arrow or JSON, developers are required to provide their own types.
 
-    PANGEA_USERNAME=xxxxx
-    PANGEA_PASSWORD=xxxxx
-    PANGEA_URL=app.pangea.foundation
+<br>
 
+## Getting started
 
-## Example
+Access to the API via `pangea-client` requires credentials, please apply for access [here](https://pangea.foundation/get-access)
 
-```rust
-use std::collections::HashSet;
+Once you have credentials set your environment variables:
 
-use futures::StreamExt;
-use pangea_client::{
-    core::types::{format::Format, ChainId},
-    provider::UniswapV3Provider,
-    query::Bound,
-    requests::uniswap_v3::GetPricesRequest,
-    ClientBuilder,
-    WsProvider,
-};
+You will be given a username and password to use to access the Pangea API.
+The easiest way to use these credentials is to create a `.env` file in the same folder as this `README.md` file, and populate it like so:
 
-#[tokio::main]
-async fn main() {
-    dotenv::dotenv().ok();
-
-    let username = std::env::var("PANGEA_USERNAME").unwrap();
-    let password = std::env::var("PANGEA_PASSWORD").unwrap();
-    let url = std::env::var("PANGEA_URL").unwrap_or("app.pangea.foundation".to_string());
-
-    // setup websocket client
-    let client = ClientBuilder::default()
-        .endpoint(&url)
-        .credential(&username, &password)
-        .build::<WsProvider>()
-        .await
-        .unwrap();
-
-    // subscribe to prices
-    let request = GetPricesRequest {
-        chains: HashSet::from([ChainId::ETH]),
-        from_block: Bound::Latest,
-        to_block: Bound::Subscribe, // real-time
-        // for historical data without subscription uncomment below
-        // from_block: Bound::FromLatest(100),
-        // to_block: Bound::Latest,
-        ..Default::default()
-    };
-
-    let stream = client.get_prices_by_format(request, Format::JsonStream, false).await.unwrap();
-
-    futures::pin_mut!(stream);
-
-    // async iterator over stream of data
-    while let Some(data) = stream.next().await {
-        let price = String::from_utf8(data.unwrap()).unwrap(); // or use serde json
-        println!("Price: {price:?}");
-    }
-}
+```sh
+PANGEA_USERNAME=xxxxx
+PANGEA_PASSWORD=xxxxx
+PANGEA_URL=app.pangea.foundation
 ```
+
+<br>
+
+## Examples
+
+Checkout the github repository separately for example code.
+
+## Setup
+
+Before proceeding, make sure to have [`cargo`](https://doc.rust-lang.org/cargo/getting-started/installation.html) installed **globally**.
+
+<br>
+
+After node is installed, `cd` to the directory where you cloned the repo (`rust` sub-folder for megarepo).
+
+<br>
+
+## Running the Examples
+
+To run any file in the `examples` folder, use the template
+
+```sh
+cargo run --example ${EXAMPLE_FILE_NAME}
+```
+
+Like so:
+
+```sh
+cargo run --example arrow-blocks
+cargo run --example jsonstream-blocks
+cargo run --example jsonstream-status
+...
+```
+
+<br>
+
+When adding a new example, it is sufficient to place it in the `examples` folder, and use the same template as above to run it.

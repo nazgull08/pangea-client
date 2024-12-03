@@ -8,23 +8,13 @@ use reqwest::header;
 use crate::{
     core::{
         error::{Error, Result},
-        provider::{ChainProvider, Provider, StreamResponse, UniswapV2Provider, UniswapV3Provider},
-        requests::{
-            self, blocks::GetBlocksRequest, logs::GetLogsRequest, txs::GetTxsRequest,
-            uniswap_v2::GetPairsRequest, uniswap_v3::GetPoolsRequest,
-        },
         types::format::Format,
     },
-    provider::{BtcProvider, CurveProvider, Erc20Provider, FuelProvider},
-    requests::{
-        btc::{GetBtcBlocksRequest, GetBtcTxsRequest},
-        erc20::{GetErc20ApprovalsRequest, GetErc20Request, GetErc20TransferssRequest},
-        fuel::{
-            GetFuelBlocksRequest, GetFuelLogsRequest, GetFuelReceiptsRequest, GetFuelTxsRequest,
-            GetSparkMarketRequest, GetSparkOrderRequest, GetSrc20, GetSrc7, GetUtxoRequest,
-        },
-        transfers::GetTransfersRequest,
+    provider::{
+        BtcProvider, ChainProvider, CurveProvider, Erc20Provider, FuelProvider, Provider,
+        StreamResponse, UniswapV2Provider, UniswapV3Provider,
     },
+    requests::{blocks, btc, curve, erc20, fuel, logs, transfers, txs, uniswap_v2, uniswap_v3},
     ChainId,
 };
 
@@ -115,7 +105,7 @@ const ETHEREUM_TRANSFERS_PATH: &str = "transfers";
 impl ChainProvider for HttpProvider {
     async fn get_blocks_by_format(
         &self,
-        request: GetBlocksRequest,
+        request: blocks::GetBlocksRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -125,7 +115,7 @@ impl ChainProvider for HttpProvider {
 
     async fn get_logs_by_format(
         &self,
-        request: GetLogsRequest,
+        request: logs::GetLogsRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -135,7 +125,7 @@ impl ChainProvider for HttpProvider {
 
     async fn get_txs_by_format(
         &self,
-        request: GetTxsRequest,
+        request: txs::GetTxsRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -145,7 +135,7 @@ impl ChainProvider for HttpProvider {
 
     async fn get_transfers_by_format(
         &self,
-        request: GetTransfersRequest,
+        request: transfers::GetTransfersRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -161,7 +151,7 @@ const UNISWAP_V2_PRICES_PATH: &str = "uniswap/v2/prices";
 impl UniswapV2Provider for HttpProvider {
     async fn get_pairs_by_format(
         &self,
-        request: GetPairsRequest,
+        request: uniswap_v2::GetPairsRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -171,7 +161,7 @@ impl UniswapV2Provider for HttpProvider {
 
     async fn get_prices_by_format(
         &self,
-        request: requests::uniswap_v2::GetPricesRequest,
+        request: uniswap_v2::GetPricesRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -180,14 +170,26 @@ impl UniswapV2Provider for HttpProvider {
     }
 }
 
+const UNISWAP_V3_FEES_PATH: &str = "uniswap/v3/fees";
 const UNISWAP_V3_POOLS_PATH: &str = "uniswap/v3/pools";
+const UNISWAP_V3_POSITIONS: &str = "uniswap/v3/positions";
 const UNISWAP_V3_PRICES_PATH: &str = "uniswap/v3/prices";
 
 #[async_trait]
 impl UniswapV3Provider for HttpProvider {
+    async fn get_fees_by_format(
+        &self,
+        request: uniswap_v3::GetFeesRequest,
+        format: Format,
+        _: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        let url = self.url(UNISWAP_V3_FEES_PATH)?;
+        self.request(url, request, format).await
+    }
+
     async fn get_pools_by_format(
         &self,
-        request: GetPoolsRequest,
+        request: uniswap_v3::GetPoolsRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -197,11 +199,21 @@ impl UniswapV3Provider for HttpProvider {
 
     async fn get_prices_by_format(
         &self,
-        request: requests::uniswap_v3::GetPricesRequest,
+        request: uniswap_v3::GetPricesRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
         let url = self.url(UNISWAP_V3_PRICES_PATH)?;
+        self.request(url, request, format).await
+    }
+
+    async fn get_positions_by_format(
+        &self,
+        request: uniswap_v3::GetPositionsRequest,
+        format: Format,
+        _: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        let url = self.url(UNISWAP_V3_POSITIONS)?;
         self.request(url, request, format).await
     }
 }
@@ -214,7 +226,7 @@ const CURVE_PRICES_PATH: &str = "curve/prices";
 impl CurveProvider for HttpProvider {
     async fn get_tokens_by_format(
         &self,
-        request: requests::curve::GetCrvTokenRequest,
+        request: curve::GetCrvTokenRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -224,7 +236,7 @@ impl CurveProvider for HttpProvider {
 
     async fn get_pools_by_format(
         &self,
-        request: requests::curve::GetCrvPoolRequest,
+        request: curve::GetCrvPoolRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -234,7 +246,7 @@ impl CurveProvider for HttpProvider {
 
     async fn get_prices_by_format(
         &self,
-        request: requests::curve::GetCrvPriceRequest,
+        request: curve::GetCrvPriceRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -251,7 +263,7 @@ const ERC20_TRANSFERS_PATH: &str = "erc20/transfers";
 impl Erc20Provider for HttpProvider {
     async fn get_erc20_by_format(
         &self,
-        request: GetErc20Request,
+        request: erc20::GetErc20Request,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -261,7 +273,7 @@ impl Erc20Provider for HttpProvider {
 
     async fn get_erc20_approval_by_format(
         &self,
-        request: GetErc20ApprovalsRequest,
+        request: erc20::GetErc20ApprovalsRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -271,7 +283,7 @@ impl Erc20Provider for HttpProvider {
 
     async fn get_erc20_transfers_by_format(
         &self,
-        request: GetErc20TransferssRequest,
+        request: erc20::GetErc20TransferssRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -287,8 +299,8 @@ const FUEL_TRANSACTIONS_PATH: &str = "transactions";
 const FUEL_UNSPENT_UTXOS_PATH: &str = "transactions/outputs";
 const FUEL_RECEIPTS_PATH: &str = "receipts";
 const FUEL_MESSAGES_PATH: &str = "messages";
-const FUEL_SPARK_ORDER_PATH: &str = "spark/orders";
 const FUEL_SPARK_MARKET_PATH: &str = "spark/markets";
+const FUEL_SPARK_ORDER_PATH: &str = "spark/orders";
 const FUEL_SRC20_PATH: &str = "src20";
 const FUEL_SRC7_PATH: &str = "src7";
 
@@ -296,7 +308,7 @@ const FUEL_SRC7_PATH: &str = "src7";
 impl FuelProvider for HttpProvider {
     async fn get_fuel_blocks_by_format(
         &self,
-        request: GetFuelBlocksRequest,
+        request: fuel::GetFuelBlocksRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -306,7 +318,7 @@ impl FuelProvider for HttpProvider {
 
     async fn get_fuel_logs_by_format(
         &self,
-        request: GetFuelLogsRequest,
+        request: fuel::GetFuelLogsRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -316,7 +328,7 @@ impl FuelProvider for HttpProvider {
 
     async fn get_fuel_logs_decoded_by_format(
         &self,
-        request: GetFuelLogsRequest,
+        request: fuel::GetFuelLogsRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -326,7 +338,7 @@ impl FuelProvider for HttpProvider {
 
     async fn get_fuel_txs_by_format(
         &self,
-        request: GetFuelTxsRequest,
+        request: fuel::GetFuelTxsRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -336,7 +348,7 @@ impl FuelProvider for HttpProvider {
 
     async fn get_fuel_receipts_by_format(
         &self,
-        request: GetFuelReceiptsRequest,
+        request: fuel::GetFuelReceiptsRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -346,7 +358,7 @@ impl FuelProvider for HttpProvider {
 
     async fn get_fuel_messages_by_format(
         &self,
-        request: requests::fuel::GetFuelMessagesRequest,
+        request: fuel::GetFuelMessagesRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -356,7 +368,7 @@ impl FuelProvider for HttpProvider {
 
     async fn get_fuel_unspent_utxos_by_format(
         &self,
-        request: GetUtxoRequest,
+        request: fuel::GetUtxoRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -366,7 +378,7 @@ impl FuelProvider for HttpProvider {
 
     async fn get_fuel_spark_markets_by_format(
         &self,
-        request: GetSparkMarketRequest,
+        request: fuel::GetSparkMarketRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -376,7 +388,7 @@ impl FuelProvider for HttpProvider {
 
     async fn get_fuel_spark_orders_by_format(
         &self,
-        request: GetSparkOrderRequest,
+        request: fuel::GetSparkOrderRequest,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -386,7 +398,7 @@ impl FuelProvider for HttpProvider {
 
     async fn get_fuel_src20_by_format(
         &self,
-        request: GetSrc20,
+        request: fuel::GetSrc20,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -396,7 +408,7 @@ impl FuelProvider for HttpProvider {
 
     async fn get_fuel_src7_by_format(
         &self,
-        request: GetSrc7,
+        request: fuel::GetSrc7,
         format: Format,
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -411,7 +423,7 @@ const BTC_TRANSACTIONS_PATH: &str = "transactions";
 impl BtcProvider for HttpProvider {
     async fn get_btc_blocks_by_format(
         &self,
-        mut request: GetBtcBlocksRequest,
+        mut request: btc::GetBtcBlocksRequest,
         format: Format,
         _deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
@@ -422,7 +434,7 @@ impl BtcProvider for HttpProvider {
 
     async fn get_btc_txs_by_format(
         &self,
-        mut request: GetBtcTxsRequest,
+        mut request: btc::GetBtcTxsRequest,
         format: Format,
         _deltas: bool,
     ) -> StreamResponse<Vec<u8>> {

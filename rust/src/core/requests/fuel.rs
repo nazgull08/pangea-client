@@ -520,14 +520,6 @@ impl Default for GetSrc20 {
     }
 }
 
-fn default_src20_from_block() -> Bound {
-    Bound::Exact(0)
-}
-
-pub fn default_chains() -> HashSet<ChainId> {
-    HashSet::from([ChainId::FUELTESTNET])
-}
-
 #[derive(Clone, Deserialize, Serialize, Debug)]
 #[allow(non_snake_case)]
 pub struct GetSrc7 {
@@ -578,4 +570,12 @@ impl Default for GetSrc7 {
             sender__in: HashSet::default(),
         }
     }
+}
+
+fn default_src20_from_block() -> Bound {
+    Bound::Exact(0)
+}
+
+pub fn default_chains() -> HashSet<ChainId> {
+    HashSet::from([ChainId::FUEL])
 }

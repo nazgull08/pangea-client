@@ -9,7 +9,7 @@ use super::{
         self,
         blocks::GetBlocksRequest,
         btc::{GetBtcBlocksRequest, GetBtcTxsRequest},
-        fuel::{GetFuelReceiptsRequest, GetSparkMarketRequest, GetSrc20, GetSrc7, GetUtxoRequest},
+        fuel::{GetFuelReceiptsRequest, GetSrc20, GetSrc7, GetUtxoRequest},
         logs::GetLogsRequest,
         txs::GetTxsRequest,
         uniswap_v2::GetPairsRequest,
@@ -20,7 +20,10 @@ use crate::{
     requests::{
         curve::{GetCrvPoolRequest, GetCrvPriceRequest, GetCrvTokenRequest},
         erc20::{GetErc20ApprovalsRequest, GetErc20Request, GetErc20TransferssRequest},
-        fuel::{GetFuelBlocksRequest, GetFuelLogsRequest, GetFuelTxsRequest, GetSparkOrderRequest},
+        fuel::{
+            GetFuelBlocksRequest, GetFuelLogsRequest, GetFuelTxsRequest, GetSparkMarketRequest,
+            GetSparkOrderRequest,
+        },
         transfers::GetTransfersRequest,
     },
     ChainId, Error, Format,
@@ -88,9 +91,21 @@ pub trait UniswapV2Provider {
 
 #[async_trait]
 pub trait UniswapV3Provider {
+    async fn get_fees_by_format(
+        &self,
+        request: requests::uniswap_v3::GetFeesRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>>;
     async fn get_pools_by_format(
         &self,
         request: GetPoolsRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>>;
+    async fn get_positions_by_format(
+        &self,
+        request: requests::uniswap_v3::GetPositionsRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>>;

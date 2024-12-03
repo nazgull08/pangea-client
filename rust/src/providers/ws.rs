@@ -19,39 +19,20 @@ use uuid::Uuid;
 use crate::{
     core::{
         error::{Error, ResponseError, Result},
-        provider::{ChainProvider, Provider, StreamResponse, UniswapV2Provider, UniswapV3Provider},
         types::format::Format,
     },
-    provider::{BtcProvider, CurveProvider, Erc20Provider, FuelProvider},
-    requests::{
-        self,
-        blocks::GetBlocksRequest,
-        btc::{GetBtcBlocksRequest, GetBtcTxsRequest},
-        erc20::{GetErc20ApprovalsRequest, GetErc20Request, GetErc20TransferssRequest},
-        fuel::{
-            GetFuelBlocksRequest, GetFuelLogsRequest, GetFuelMessagesRequest,
-            GetFuelReceiptsRequest, GetFuelTxsRequest, GetSparkMarketRequest, GetSparkOrderRequest,
-            GetSrc20, GetSrc7, GetUtxoRequest,
-        },
-        logs::GetLogsRequest,
-        transfers::GetTransfersRequest,
-        txs::GetTxsRequest,
-        uniswap_v2::{GetPairsRequest, GetPricesRequest as GetUniswapV2PricesRequest},
-        uniswap_v3::{GetPoolsRequest, GetPricesRequest as GetUniswapV3PricesRequest},
+    provider::{
+        BtcProvider, ChainProvider, CurveProvider, Erc20Provider, FuelProvider, Provider,
+        StreamResponse, UniswapV2Provider, UniswapV3Provider,
     },
+    requests::{blocks, btc, curve, erc20, fuel, logs, transfers, txs, uniswap_v2, uniswap_v3},
     ChainId,
 };
 
 const WS_PATH: &str = "v1/websocket";
 
 type WsResult = Result<Vec<u8>>;
-type OperationMsg = (
-    Uuid,
-    Operation,
-    Format,
-    bool,
-    mpsc::UnboundedSender<WsResult>,
-);
+type OperationMsg = (Request, mpsc::UnboundedSender<WsResult>);
 
 #[derive(Clone, Debug)]
 pub struct WsProvider {
@@ -59,17 +40,31 @@ pub struct WsProvider {
 }
 
 impl WsProvider {
-    async fn request(
+    pub async fn request(
         &self,
         operation: Operation,
+        params: impl Serialize,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
         let (sink, stream) = mpsc::unbounded();
         let id = Uuid::new_v4();
 
+        let params = serde_json::to_value(params).map_err(Error::from)?;
+        let params = if matches!(params, serde_json::Value::Null) {
+            HashMap::new()
+        } else {
+            serde_json::from_value(params).map_err(Error::from)?
+        };
+        let request = Request {
+            id,
+            operation,
+            params,
+            format,
+            deltas,
+        };
         self.operations
-            .unbounded_send((id, operation, format, deltas, sink))
+            .unbounded_send((request, sink))
             .map_err(|_| Error::BackendShutDown)?;
 
         let stream = stream
@@ -125,7 +120,7 @@ impl Provider for WsProvider {
     }
 
     async fn get_status_by_format(&self, format: Format) -> StreamResponse<Vec<u8>> {
-        self.request(Operation::GetStatus, format, false).await
+        self.request(Operation::GetStatus, (), format, false).await
     }
 }
 
@@ -133,41 +128,41 @@ impl Provider for WsProvider {
 impl ChainProvider for WsProvider {
     async fn get_blocks_by_format(
         &self,
-        request: GetBlocksRequest,
+        request: blocks::GetBlocksRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(Operation::GetBlocks { params: request }, format, deltas)
+        self.request(Operation::GetBlocks, request, format, deltas)
             .await
     }
 
     async fn get_logs_by_format(
         &self,
-        request: GetLogsRequest,
+        request: logs::GetLogsRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(Operation::GetLogs { params: request }, format, deltas)
+        self.request(Operation::GetLogs, request, format, deltas)
             .await
     }
 
     async fn get_txs_by_format(
         &self,
-        request: GetTxsRequest,
+        request: txs::GetTxsRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(Operation::GetTxs { params: request }, format, deltas)
+        self.request(Operation::GetTxs, request, format, deltas)
             .await
     }
 
     async fn get_transfers_by_format(
         &self,
-        request: GetTransfersRequest,
+        request: transfers::GetTransfersRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(Operation::GetTransfers { params: request }, format, deltas)
+        self.request(Operation::GetTransfers, request, format, deltas)
             .await
     }
 }
@@ -176,61 +171,65 @@ impl ChainProvider for WsProvider {
 impl UniswapV2Provider for WsProvider {
     async fn get_pairs_by_format(
         &self,
-        request: GetPairsRequest,
+        request: uniswap_v2::GetPairsRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(
-            Operation::GetUniswapV2Pairs { params: request },
-            format,
-            deltas,
-        )
-        .await
+        self.request(Operation::GetUniswapV2Pairs, request, format, deltas)
+            .await
     }
 
     async fn get_prices_by_format(
         &self,
-        request: requests::uniswap_v2::GetPricesRequest,
+        request: uniswap_v2::GetPricesRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(
-            Operation::GetUniswapV2Prices { params: request },
-            format,
-            deltas,
-        )
-        .await
+        self.request(Operation::GetUniswapV2Prices, request, format, deltas)
+            .await
     }
 }
 
 #[async_trait]
 impl UniswapV3Provider for WsProvider {
-    async fn get_pools_by_format(
+    async fn get_fees_by_format(
         &self,
-        request: GetPoolsRequest,
+        request: uniswap_v3::GetFeesRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(
-            Operation::GetUniswapV3Pools { params: request },
-            format,
-            deltas,
-        )
-        .await
+        self.request(Operation::GetUniswapV3Fees, request, format, deltas)
+            .await
+    }
+
+    async fn get_pools_by_format(
+        &self,
+        request: uniswap_v3::GetPoolsRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        self.request(Operation::GetUniswapV3Pools, request, format, deltas)
+            .await
+    }
+
+    async fn get_positions_by_format(
+        &self,
+        request: uniswap_v3::GetPositionsRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        self.request(Operation::GetUniswapV3Positions, request, format, deltas)
+            .await
     }
 
     async fn get_prices_by_format(
         &self,
-        request: requests::uniswap_v3::GetPricesRequest,
+        request: uniswap_v3::GetPricesRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(
-            Operation::GetUniswapV3Prices { params: request },
-            format,
-            deltas,
-        )
-        .await
+        self.request(Operation::GetUniswapV3Prices, request, format, deltas)
+            .await
     }
 }
 
@@ -238,40 +237,32 @@ impl UniswapV3Provider for WsProvider {
 impl CurveProvider for WsProvider {
     async fn get_tokens_by_format(
         &self,
-        request: requests::curve::GetCrvTokenRequest,
+        request: curve::GetCrvTokenRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(
-            Operation::GetCurveTokens { params: request },
-            format,
-            deltas,
-        )
-        .await
+        self.request(Operation::GetCurveTokens, request, format, deltas)
+            .await
     }
 
     async fn get_pools_by_format(
         &self,
-        request: requests::curve::GetCrvPoolRequest,
+        request: curve::GetCrvPoolRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(Operation::GetCurvePools { params: request }, format, deltas)
+        self.request(Operation::GetCurvePools, request, format, deltas)
             .await
     }
 
     async fn get_prices_by_format(
         &self,
-        request: requests::curve::GetCrvPriceRequest,
+        request: curve::GetCrvPriceRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(
-            Operation::GetCurvePrices { params: request },
-            format,
-            deltas,
-        )
-        .await
+        self.request(Operation::GetCurvePrices, request, format, deltas)
+            .await
     }
 }
 
@@ -279,40 +270,32 @@ impl CurveProvider for WsProvider {
 impl Erc20Provider for WsProvider {
     async fn get_erc20_by_format(
         &self,
-        request: GetErc20Request,
+        request: erc20::GetErc20Request,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(Operation::GetErc20 { params: request }, format, deltas)
+        self.request(Operation::GetErc20, request, format, deltas)
             .await
     }
 
     async fn get_erc20_approval_by_format(
         &self,
-        request: GetErc20ApprovalsRequest,
+        request: erc20::GetErc20ApprovalsRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(
-            Operation::GetErc20Approvals { params: request },
-            format,
-            deltas,
-        )
-        .await
+        self.request(Operation::GetErc20Approvals, request, format, deltas)
+            .await
     }
 
     async fn get_erc20_transfers_by_format(
         &self,
-        request: GetErc20TransferssRequest,
+        request: erc20::GetErc20TransferssRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(
-            Operation::GetErc20Transfers { params: request },
-            format,
-            deltas,
-        )
-        .await
+        self.request(Operation::GetErc20Transfers, request, format, deltas)
+            .await
     }
 }
 
@@ -320,127 +303,111 @@ impl Erc20Provider for WsProvider {
 impl FuelProvider for WsProvider {
     async fn get_fuel_blocks_by_format(
         &self,
-        request: GetFuelBlocksRequest,
+        request: fuel::GetFuelBlocksRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(Operation::GetFuelBlocks { params: request }, format, deltas)
+        self.request(Operation::GetBlocks, request, format, deltas)
             .await
     }
 
     async fn get_fuel_logs_by_format(
         &self,
-        request: GetFuelLogsRequest,
+        request: fuel::GetFuelLogsRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(Operation::GetFuelLogs { params: request }, format, deltas)
+        self.request(Operation::GetLogs, request, format, deltas)
             .await
     }
 
     async fn get_fuel_logs_decoded_by_format(
         &self,
-        request: GetFuelLogsRequest,
+        request: fuel::GetFuelLogsRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(
-            Operation::GetFuelLogsDecoded { params: request },
-            format,
-            deltas,
-        )
-        .await
+        self.request(Operation::GetFuelLogsDecoded, request, format, deltas)
+            .await
     }
 
     async fn get_fuel_txs_by_format(
         &self,
-        request: GetFuelTxsRequest,
+        request: fuel::GetFuelTxsRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(Operation::GetFuelTxs { params: request }, format, deltas)
+        self.request(Operation::GetTxs, request, format, deltas)
             .await
     }
 
     async fn get_fuel_receipts_by_format(
         &self,
-        request: GetFuelReceiptsRequest,
+        request: fuel::GetFuelReceiptsRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(
-            Operation::GetFuelReceipts { params: request },
-            format,
-            deltas,
-        )
-        .await
+        self.request(Operation::GetReceipts, request, format, deltas)
+            .await
     }
 
     async fn get_fuel_messages_by_format(
         &self,
-        request: GetFuelMessagesRequest,
+        request: fuel::GetFuelMessagesRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(Operation::GetMessages { params: request }, format, deltas)
+        self.request(Operation::GetMessages, request, format, deltas)
             .await
     }
 
     async fn get_fuel_unspent_utxos_by_format(
         &self,
-        request: GetUtxoRequest,
+        request: fuel::GetUtxoRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(
-            Operation::GetFuelUnspentUtxos { params: request },
-            format,
-            deltas,
-        )
-        .await
+        self.request(Operation::GetUnspentUtxos, request, format, deltas)
+            .await
     }
 
     async fn get_fuel_spark_markets_by_format(
         &self,
-        request: GetSparkMarketRequest,
+        request: fuel::GetSparkMarketRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(
-            Operation::GetSparkMarket { params: request },
-            format,
-            deltas,
-        )
-        .await
+        self.request(Operation::GetSparkMarket, request, format, deltas)
+            .await
     }
 
     async fn get_fuel_spark_orders_by_format(
         &self,
-        request: GetSparkOrderRequest,
+        request: fuel::GetSparkOrderRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(Operation::GetSparkOrder { params: request }, format, deltas)
+        self.request(Operation::GetSparkOrder, request, format, deltas)
             .await
     }
 
     async fn get_fuel_src20_by_format(
         &self,
-        request: GetSrc20,
+        request: fuel::GetSrc20,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(Operation::GetSrc20 { params: request }, format, deltas)
+        self.request(Operation::GetSrc20, request, format, deltas)
             .await
     }
 
     async fn get_fuel_src7_by_format(
         &self,
-        request: GetSrc7,
+        request: fuel::GetSrc7,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
-        self.request(Operation::GetSrc7 { params: request }, format, deltas)
+        self.request(Operation::GetSrc7, request, format, deltas)
             .await
     }
 }
@@ -449,23 +416,23 @@ impl FuelProvider for WsProvider {
 impl BtcProvider for WsProvider {
     async fn get_btc_blocks_by_format(
         &self,
-        mut request: GetBtcBlocksRequest,
+        mut request: btc::GetBtcBlocksRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
         request.chains = HashSet::from_iter(vec![ChainId::BTC]);
-        self.request(Operation::GetBtcBlocks { params: request }, format, deltas)
+        self.request(Operation::GetBlocks, request, format, deltas)
             .await
     }
 
     async fn get_btc_txs_by_format(
         &self,
-        mut request: GetBtcTxsRequest,
+        mut request: btc::GetBtcTxsRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>> {
         request.chains = HashSet::from_iter(vec![ChainId::BTC]);
-        self.request(Operation::GetBtcTxs { params: request }, format, deltas)
+        self.request(Operation::GetTxs, request, format, deltas)
             .await
     }
 }
@@ -539,18 +506,14 @@ impl BackgroundWorker {
     }
 
     async fn operate(&mut self, operation: OperationMsg) -> Result<()> {
-        let (id, operation, format, deltas, sink) = operation;
-
-        let request = Request {
-            id,
-            operation,
-            format,
-            deltas,
-        };
+        let (request, sink) = operation;
         let payload = serde_json::to_vec(&request)?;
 
-        if self.subscriptions.insert(id, sink).is_some() {
-            warn!("Replacing already-registered subscription with id {:?}", id);
+        if self.subscriptions.insert(request.id, sink).is_some() {
+            warn!(
+                "Replacing already-registered subscription with id {:?}",
+                request.id
+            );
         }
 
         self.ws.send(Message::Binary(payload)).await?;
@@ -628,135 +591,44 @@ impl BackgroundWorker {
 #[derive(Clone, serde::Serialize)]
 struct Request {
     id: Uuid,
-    #[serde(flatten)]
     operation: Operation,
+    #[serde(flatten)]
+    params: HashMap<String, serde_json::Value>,
     #[serde(default)]
     format: Format,
     #[serde(default)]
     deltas: bool,
 }
 
-#[derive(Clone, serde::Serialize)]
-#[serde(tag = "operation", rename_all = "camelCase")]
-enum Operation {
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Operation {
     GetStatus,
-    GetBlocks {
-        #[serde(flatten)]
-        params: GetBlocksRequest,
-    },
-    GetLogs {
-        #[serde(flatten)]
-        params: GetLogsRequest,
-    },
+    GetBlocks,
+    GetLogs,
+    GetTxs,
+    GetReceipts,
     #[serde(rename = "getDecodedLogs")]
-    GetFuelLogsDecoded {
-        #[serde(flatten)]
-        params: GetFuelLogsRequest,
-    },
-    GetTxs {
-        #[serde(flatten)]
-        params: GetTxsRequest,
-    },
-    #[serde(rename = "getBlocks")]
-    GetBtcBlocks {
-        #[serde(flatten)]
-        params: GetBtcBlocksRequest,
-    },
-    #[serde(rename = "getTxs")]
-    GetBtcTxs {
-        #[serde(flatten)]
-        params: GetBtcTxsRequest,
-    },
-    #[serde(rename = "getBlocks")]
-    GetFuelBlocks {
-        #[serde(flatten)]
-        params: GetFuelBlocksRequest,
-    },
-    #[serde(rename = "getLogs")]
-    GetFuelLogs {
-        #[serde(flatten)]
-        params: GetFuelLogsRequest,
-    },
-    #[serde(rename = "getTxs")]
-    GetFuelTxs {
-        #[serde(flatten)]
-        params: GetFuelTxsRequest,
-    },
-    #[serde(rename = "getReceipts")]
-    GetFuelReceipts {
-        #[serde(flatten)]
-        params: GetFuelReceiptsRequest,
-    },
-    #[serde(rename = "getMessages")]
-    GetMessages {
-        #[serde(flatten)]
-        params: GetFuelMessagesRequest,
-    },
-    #[serde(rename = "getUnspentUtxos")]
-    GetFuelUnspentUtxos {
-        #[serde(flatten)]
-        params: GetUtxoRequest,
-    },
-    GetUniswapV2Pairs {
-        #[serde(flatten)]
-        params: GetPairsRequest,
-    },
-    GetUniswapV2Prices {
-        #[serde(flatten)]
-        params: GetUniswapV2PricesRequest,
-    },
-    GetUniswapV3Pools {
-        #[serde(flatten)]
-        params: GetPoolsRequest,
-    },
-    GetUniswapV3Prices {
-        #[serde(flatten)]
-        params: GetUniswapV3PricesRequest,
-    },
-    GetCurveTokens {
-        #[serde(flatten)]
-        params: requests::curve::GetCrvTokenRequest,
-    },
-    GetCurvePools {
-        #[serde(flatten)]
-        params: requests::curve::GetCrvPoolRequest,
-    },
-    GetCurvePrices {
-        #[serde(flatten)]
-        params: requests::curve::GetCrvPriceRequest,
-    },
-    GetTransfers {
-        #[serde(flatten)]
-        params: requests::transfers::GetTransfersRequest,
-    },
-    GetErc20 {
-        #[serde(flatten)]
-        params: requests::erc20::GetErc20Request,
-    },
-    GetErc20Approvals {
-        #[serde(flatten)]
-        params: requests::erc20::GetErc20ApprovalsRequest,
-    },
-    GetErc20Transfers {
-        #[serde(flatten)]
-        params: requests::erc20::GetErc20TransferssRequest,
-    },
-    GetSparkMarket {
-        #[serde(flatten)]
-        params: requests::fuel::GetSparkMarketRequest,
-    },
-    GetSparkOrder {
-        #[serde(flatten)]
-        params: requests::fuel::GetSparkOrderRequest,
-    },
-    GetSrc20 {
-        #[serde(flatten)]
-        params: requests::fuel::GetSrc20,
-    },
-    GetSrc7 {
-        #[serde(flatten)]
-        params: requests::fuel::GetSrc7,
-    },
+    GetFuelLogsDecoded,
+    GetMessages,
+    GetUnspentUtxos,
+    GetUniswapV2Pairs,
+    GetUniswapV2Prices,
+    GetUniswapV3Fees,
+    GetUniswapV3Pools,
+    GetUniswapV3Positions,
+    GetUniswapV3Prices,
+    GetCurveTokens,
+    GetCurvePools,
+    GetCurvePrices,
+    GetTransfers,
+    GetErc20,
+    GetErc20Approvals,
+    GetErc20Transfers,
+    GetSparkMarket,
+    GetSparkOrder,
+    GetSrc20,
+    GetSrc7,
 }
 
 #[derive(Debug, Clone, Deserialize)]

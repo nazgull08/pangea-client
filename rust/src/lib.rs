@@ -11,7 +11,7 @@ mod providers;
 
 pub use ::{futures, reqwest, tokio, tokio_tungstenite, tungstenite, url};
 
-pub use  ethers_core::types::Address;
+pub use ethers_core::types::Address;
 
 #[doc(inline)]
 pub use crate::core::{
@@ -23,4 +23,4 @@ pub use crate::core::{
     utils,
 };
 #[doc(inline)]
-pub use crate::providers::{http::HttpProvider, ws::WsProvider};
+pub use crate::providers::{http::HttpProvider, ws::Operation, ws::WsProvider};
