@@ -24,6 +24,7 @@ use crate::{
             GetFuelBlocksRequest, GetFuelLogsRequest, GetFuelTxsRequest, GetSparkMarketRequest,
             GetSparkOrderRequest,
         },
+        mira::{GetMiraLiquidityRequest, GetMiraPoolsRequest, GetMiraSwapsRequest},
         transfers::GetTransfersRequest,
     },
     ChainId, Error, Format,
@@ -240,6 +241,27 @@ pub trait FuelProvider {
     async fn get_fuel_src7_by_format(
         &self,
         request: GetSrc7,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>>;
+
+    async fn get_fuel_mira_v1_pools_by_format(
+        &self,
+        request: GetMiraPoolsRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>>;
+
+    async fn get_fuel_mira_v1_liquidity_by_format(
+        &self,
+        request: GetMiraLiquidityRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>>;
+
+    async fn get_fuel_mira_v1_swaps_by_format(
+        &self,
+        request: GetMiraSwapsRequest,
         format: Format,
         deltas: bool,
     ) -> StreamResponse<Vec<u8>>;

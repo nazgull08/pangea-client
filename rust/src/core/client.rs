@@ -7,7 +7,9 @@ use super::{
         BtcProvider, ChainProvider, CurveProvider, Erc20Provider, FuelProvider, Provider,
         StreamResponse, UniswapV2Provider, UniswapV3Provider,
     },
-    requests::{blocks, btc, curve, erc20, fuel, logs, transfers, txs, uniswap_v2, uniswap_v3},
+    requests::{
+        blocks, btc, curve, erc20, fuel, logs, mira, transfers, txs, uniswap_v2, uniswap_v3,
+    },
     types::{format::Format, status::Status},
 };
 use crate::{Operation, WsProvider};
@@ -395,6 +397,45 @@ where
 
         self.inner
             .get_fuel_src7_by_format(request, format, deltas)
+            .await
+    }
+
+    async fn get_fuel_mira_v1_pools_by_format(
+        &self,
+        request: mira::GetMiraPoolsRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        self.check_chain(&request.chains)?;
+
+        self.inner
+            .get_fuel_mira_v1_pools_by_format(request, format, deltas)
+            .await
+    }
+
+    async fn get_fuel_mira_v1_liquidity_by_format(
+        &self,
+        request: mira::GetMiraLiquidityRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        self.check_chain(&request.chains)?;
+
+        self.inner
+            .get_fuel_mira_v1_liquidity_by_format(request, format, deltas)
+            .await
+    }
+
+    async fn get_fuel_mira_v1_swaps_by_format(
+        &self,
+        request: mira::GetMiraSwapsRequest,
+        format: Format,
+        deltas: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        self.check_chain(&request.chains)?;
+
+        self.inner
+            .get_fuel_mira_v1_swaps_by_format(request, format, deltas)
             .await
     }
 }

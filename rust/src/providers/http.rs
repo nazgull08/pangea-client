@@ -14,7 +14,9 @@ use crate::{
         BtcProvider, ChainProvider, CurveProvider, Erc20Provider, FuelProvider, Provider,
         StreamResponse, UniswapV2Provider, UniswapV3Provider,
     },
-    requests::{blocks, btc, curve, erc20, fuel, logs, transfers, txs, uniswap_v2, uniswap_v3},
+    requests::{
+        blocks, btc, curve, erc20, fuel, logs, mira, transfers, txs, uniswap_v2, uniswap_v3,
+    },
     ChainId,
 };
 
@@ -303,6 +305,9 @@ const FUEL_SPARK_MARKET_PATH: &str = "spark/markets";
 const FUEL_SPARK_ORDER_PATH: &str = "spark/orders";
 const FUEL_SRC20_PATH: &str = "src20";
 const FUEL_SRC7_PATH: &str = "src7";
+const FUEL_MIRA_POOLS_PATH: &str = "mira/v1/pools";
+const FUEL_MIRA_LIQUIDITY_PATH: &str = "mira/v1/liquidity";
+const FUEL_MIRA_SWAPS_PATH: &str = "mira/v1/swaps";
 
 #[async_trait]
 impl FuelProvider for HttpProvider {
@@ -413,6 +418,36 @@ impl FuelProvider for HttpProvider {
         _: bool,
     ) -> StreamResponse<Vec<u8>> {
         let url = self.url(FUEL_SRC7_PATH)?;
+        self.request(url, request, format).await
+    }
+
+    async fn get_fuel_mira_v1_pools_by_format(
+        &self,
+        request: mira::GetMiraPoolsRequest,
+        format: Format,
+        _: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        let url = self.url(FUEL_MIRA_POOLS_PATH)?;
+        self.request(url, request, format).await
+    }
+
+    async fn get_fuel_mira_v1_liquidity_by_format(
+        &self,
+        request: mira::GetMiraLiquidityRequest,
+        format: Format,
+        _: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        let url = self.url(FUEL_MIRA_LIQUIDITY_PATH)?;
+        self.request(url, request, format).await
+    }
+
+    async fn get_fuel_mira_v1_swaps_by_format(
+        &self,
+        request: mira::GetMiraSwapsRequest,
+        format: Format,
+        _: bool,
+    ) -> StreamResponse<Vec<u8>> {
+        let url = self.url(FUEL_MIRA_SWAPS_PATH)?;
         self.request(url, request, format).await
     }
 }

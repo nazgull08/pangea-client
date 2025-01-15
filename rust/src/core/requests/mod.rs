@@ -4,6 +4,7 @@ pub mod curve;
 pub mod erc20;
 pub mod fuel;
 pub mod logs;
+pub mod mira;
 pub mod transfers;
 pub mod txs;
 pub mod uniswap_v2;

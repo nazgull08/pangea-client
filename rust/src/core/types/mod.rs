@@ -10,6 +10,7 @@ use strum::{AsRefStr, EnumString};
 
 pub mod format;
 pub mod fuel;
+pub mod mira;
 pub mod query;
 pub mod status;
 pub mod uniswap_v2;

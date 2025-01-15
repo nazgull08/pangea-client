@@ -72,6 +72,12 @@ pub enum Error {
     #[error("unknown reserve event: {0}")]
     UnknownReserveEvent(i32),
 
+    #[error("unknown mira liquidity event: {0}")]
+    UnknownEventType(i32),
+
+    #[error("unknown mira trade side: {0}")]
+    UnknownSide(i32),
+
     #[error("unknown transaction type: {0}")]
     UnknownTransactionType(i32),
 
