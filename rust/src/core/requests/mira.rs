@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use ethers_core::types::{Address, H256};
+use ethers_core::types::H256;
 
 use crate::{
     core::types::{default_chains, ChainId},
@@ -38,7 +38,7 @@ pub struct GetMiraPoolsRequest {
 
     #[serde(default)]
     #[serde(serialize_with = "serialize_comma_separated")]
-    pub assets__in: HashSet<Address>,
+    pub assets__in: HashSet<H256>,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
@@ -69,7 +69,7 @@ pub struct GetMiraLiquidityRequest {
 
     #[serde(default)]
     #[serde(serialize_with = "serialize_comma_separated")]
-    pub assets__in: HashSet<Address>,
+    pub assets__in: HashSet<H256>,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
@@ -100,5 +100,5 @@ pub struct GetMiraSwapsRequest {
 
     #[serde(default)]
     #[serde(serialize_with = "serialize_comma_separated")]
-    pub assets__in: HashSet<Address>,
+    pub assets__in: HashSet<H256>,
 }
