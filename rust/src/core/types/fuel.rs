@@ -73,6 +73,7 @@ pub enum LimitType {
     GTC = 0,
     IOC = 1,
     FOK = 2,
+    MKT = 3,
 }
 
 #[derive(AsRefStr, Clone, Copy, Debug, Default, Hash, Deserialize, Serialize, PartialEq, Eq)]

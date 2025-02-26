@@ -158,16 +158,6 @@ pub struct GetPoolsRequest {
     pub fee__lte: Option<i32>,
 
     #[serde(default)]
-    pub tick__gte: Option<i32>,
-    #[serde(default)]
-    pub tick__lte: Option<i32>,
-
-    #[serde(default)]
-    pub price__gte: Option<f64>,
-    #[serde(default)]
-    pub price__lte: Option<f64>,
-
-    #[serde(default)]
     pub tick_spacing__gte: Option<i32>,
     #[serde(default)]
     pub tick_spacing__lte: Option<i32>,
@@ -186,10 +176,6 @@ impl Default for GetPoolsRequest {
             tokens__in: HashSet::default(),
             fee__gte: None,
             fee__lte: None,
-            tick__gte: None,
-            tick__lte: None,
-            price__gte: None,
-            price__lte: None,
             tick_spacing__gte: None,
             tick_spacing__lte: None,
         }
